@@ -209,6 +209,14 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
 
 #define WIFI_PHASE_MS       30000UL  /* Wi-Fi phase length (15 superframes)   */
 
+#define SINK_BLE_ANCHOR          1   /* The sink must advertise, otherwise N1
+                                      * can only hear two anchors and 2-D
+                                      * trilateration is impossible.  Set to 0
+                                      * only if the sink runs out of RAM with
+                                      * BLE + SoftAP + web server together --
+                                      * and then localization degrades to
+                                      * proximity only.                       */
+
 /* -----------------------------------------------------------------------------
  * 9.  ROUTING
  *

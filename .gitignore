@@ -1,0 +1,24 @@
+# Build artifacts
+build/
+*.bin
+*.elf
+*.map
+*.hex
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Results captured at runtime (keep the folder, ignore raw dumps)
+results/*.csv
+results/*.log
+!results/.gitkeep
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+*.swp

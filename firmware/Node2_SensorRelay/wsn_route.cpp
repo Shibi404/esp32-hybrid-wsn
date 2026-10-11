@@ -189,7 +189,18 @@ bool routeRecompute(void) {
     if (s_nbr[i].cost < bestCost) { bestCost = s_nbr[i].cost; best = i; }
   }
 
+  /* Hysteresis.  Two links of nearly equal cost would otherwise swap on every
+   * sweep -- 70 route changes in a few minutes, each one abandoning an
+   * in-flight frame.  The incumbent keeps the route unless a challenger beats
+   * it by a real margin.                                                    */
   const uint8_t prev = s_rt.nextHop;
+  if (prev && prev != best && prev <= NUM_NODES &&
+      s_nbr[prev].cost < ROUTE_COST_INF &&
+      s_nbr[prev].cost <= (uint16_t)(bestCost + ROUTE_HYSTERESIS)) {
+    best     = prev;
+    bestCost = s_nbr[prev].cost;
+  }
+
   s_rt.nextHop    = best;
   s_rt.cost       = bestCost;
   s_rt.hopsToSink = best ? (uint8_t)(s_nbr[best].hopsToSink + 1) : 0xFF;

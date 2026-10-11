@@ -216,9 +216,30 @@ static bool slotNeedsRadio(uint8_t slot) {
   }
 }
 
+/* Sleep through this slot only if the NEXT one is idle too.
+ *
+ * The last idle slot of every run is therefore spent awake, giving
+ * esp_wifi_start() a full slot to bring the PHY back before anything needs
+ * it.  Waking on the slot boundary instead does not work on this hardware:
+ * the radio takes ~100 ms to return, the sender transmits ~20 ms into its
+ * slot, and the receiver simply is not there yet.  That cost 60-85 % of ACKs
+ * on links measuring -54 dBm, and the resulting phantom link failures made
+ * the routing layer thrash.
+ *
+ * A useful consequence is that the cluster head stops sleeping altogether:
+ * its only idle slots are 3 and 7, neither of which is followed by another
+ * idle slot, so it is always awake to beacon in slot 0.  That is the correct
+ * behaviour anyway -- a scheduler that misses its own beacon desynchronises
+ * the whole network.                                                        */
 bool tdmaShouldSleepNow(void) {
   if (!s_synced) return false;
-  return !slotNeedsRadio(tdmaCurrentSlot());
+  if (NODE_ROLE == ROLE_SINK) return false;
+
+  const uint8_t slot = tdmaCurrentSlot();
+  if (slotNeedsRadio(slot)) return false;
+
+  const uint8_t next = (uint8_t)((slot + 1) % TDMA_NUM_SLOTS);
+  return !slotNeedsRadio(next);
 }
 
 void tdmaEnterSleep(uint32_t ms) {
@@ -531,5 +552,7 @@ void tdmaPrintStats(void) {
   Serial.printf("   Radio duty cycle   : %.1f %%  (sleep mode: %s)\r\n",
                 tdmaDutyCyclePct(),
                 ENABLE_LIGHT_SLEEP ? "light sleep" : "radio off");
+  Serial.println("   (the last idle slot of each run is spent awake, so the");
+  Serial.println("    PHY is back before the next slot that needs it)");
   Serial.println();
 }

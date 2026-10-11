@@ -182,6 +182,17 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
                                       * scanning node would lose its slot    */
 #define SCHED_BACKLOG_LIMIT     3    /* queued frames that justify a grant    */
 
+/* esp_wifi_start() needs roughly 100 ms to bring the PHY back -- about 40 %
+ * of a slot.  A node that wakes on the slot boundary is therefore still
+ * booting its radio when the slot's traffic arrives.  Measured the hard way:
+ * waking at the boundary produced 60-85 % ACK loss on links sitting at
+ * -54 dBm, and route thrashing on top of it.
+ *
+ * So a node only sleeps through a slot when the FOLLOWING slot is also idle,
+ * which leaves the last idle slot of every run awake as a warm-up slot.  See
+ * tdmaShouldSleepNow().                                                     */
+#define RADIO_WAKE_SLOTS        1    /* idle slots reserved for PHY warm-up   */
+
 #define ENABLE_LIGHT_SLEEP      0    /* 0 = radio-off sleep (esp_wifi_stop),
                                       *     CPU stays alive so serial logging
                                       *     keeps running -- best for a demo.
@@ -271,6 +282,12 @@ bool routeLinkAllowed(uint8_t a, uint8_t b);
 
 #define RSSI_NORM_MIN       (-95)    /* maps to rssiNorm = 0                  */
 #define RSSI_NORM_MAX       (-35)    /* maps to rssiNorm = 1                  */
+
+/* Hysteresis on next-hop selection, in cost units.  A challenger must beat
+ * the incumbent by at least this much to take over.  Without it two links of
+ * nearly equal cost trade places on every sweep, the route log becomes
+ * unreadable, and every swap costs an in-flight frame.                      */
+#define ROUTE_HYSTERESIS       40
 
 #define ROUTE_FAIL_LIMIT        3    /* consecutive ACK losses -> link down   */
 #define NEIGHBOR_TIMEOUT_MS  7000UL  /* silence this long -> link down        */

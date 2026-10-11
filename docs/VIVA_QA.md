@@ -204,6 +204,26 @@ Nodes adopt a beacon only when its `schedVersion` differs from the one they
 hold, and the head only ever increments. A late-overheard old beacon cannot
 roll the network backwards.
 
+**Q. Your duty cycle is 75 %, not the 50 % the slot map implies. Why?**
+Because `esp_wifi_start()` takes roughly 100 ms to bring the PHY back, which
+is 40 % of a 250 ms slot. A node that wakes on the slot boundary is still
+booting its radio when that slot's traffic arrives. We measured this: waking
+at the boundary cost 60-85 % of ACKs on links sitting at -54 dBm, and the
+phantom link failures made the routing layer thrash through 70 route changes
+in a few minutes. So a node now sleeps through a slot only when the *next*
+slot is idle too, leaving the last idle slot of every run awake as a warm-up
+slot. The honest duty cycle is 75 % instead of a theoretical 50 %, and the
+network actually works. `ENABLE_LIGHT_SLEEP` would recover most of the
+difference, because light sleep resumes in milliseconds rather than
+restarting the driver.
+
+**Q. Why doesn't the cluster head sleep at all now?**
+It falls out of the same rule. Its only idle slots are 3 and 7, and neither
+is followed by another idle slot, so neither qualifies. That is the right
+answer anyway: N3 must transmit the beacon in slot 0, and a scheduler that
+wakes into its own beacon slot with a cold radio desynchronises the entire
+network.
+
 **Q. Is your sleep real?**
 Yes. `esp_wifi_stop()` powers down the Wi-Fi MAC and PHY — about 40 mA on an
 ESP32 — and `esp_wifi_start()` brings it back before the next slot the node

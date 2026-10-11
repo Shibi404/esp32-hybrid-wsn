@@ -355,6 +355,21 @@ any slot in which it may have to receive. The sink never sleeps: it is
 mains-powered and must keep the dashboard reachable. This asymmetry — energy
 scarce at the leaves, not at the gateway — is standard WSN design.
 
+**A measured constraint shapes this.** `esp_wifi_start()` requires roughly
+100 ms to bring the PHY back, which is 40 % of a 250 ms slot. In testing, a
+node that woke on the slot boundary was still booting its radio when that
+slot's traffic arrived: ACK loss reached 60–85 % on links measuring −54 dBm,
+and the resulting phantom link failures drove 70 route changes in a few
+minutes. A node therefore sleeps through a slot only when the following slot
+is also idle, which leaves the last idle slot of every run awake as a warm-up
+slot. The achievable duty cycle falls from a theoretical 50 % to a measured
+75 %, and the network becomes reliable. The cluster head stops sleeping
+altogether as a consequence — neither of its idle slots is followed by
+another — which is correct, since a scheduler that wakes into its own beacon
+slot with a cold radio desynchronises the network. `ENABLE_LIGHT_SLEEP`
+recovers most of the difference, light sleep resuming in milliseconds rather
+than restarting the driver.
+
 ---
 
 ## 8. Data aggregation
@@ -607,6 +622,11 @@ expresses the intended deployment topology so that the multi-hop mechanisms
 actually execute. The routing, failure detection and recovery that follow are
 entirely genuine — only the adjacency is asserted, and spacing the nodes out
 would make it physical.
+
+**Duty cycling is limited by radio restart latency.** The 100 ms cost of
+`esp_wifi_start()` against a 250 ms slot is what caps the achievable duty
+cycle at 75 %. A longer superframe, or light sleep instead of a driver
+restart, would both improve it.
 
 **No hidden-terminal protection beyond NAV.** The virtual carrier sense relies
 on overhearing data frames; a proper RTS/CTS exchange would cover the case

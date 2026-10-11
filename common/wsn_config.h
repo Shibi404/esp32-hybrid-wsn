@@ -176,7 +176,10 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
 #define SLOT_SINK_STATUS        6    /* N4 broadcasts network status          */
 #define SLOT_SLEEP              7    /* everybody idle                        */
 
-#define SCHED_SILENT_LIMIT      3    /* missed slots before a slot is revoked */
+#define SCHED_SILENT_LIMIT      4    /* missed superframes before a slot is
+                                      * revoked.  Must exceed the number of
+                                      * superframes a BLE scan spans, or a
+                                      * scanning node would lose its slot    */
 #define SCHED_BACKLOG_LIMIT     3    /* queued frames that justify a grant    */
 
 #define ENABLE_LIGHT_SLEEP      0    /* 0 = radio-off sleep (esp_wifi_stop),
@@ -191,8 +194,10 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
  * 8.  BLE LOCALIZATION
  * -------------------------------------------------------------------------- */
 
-#define BLE_PHASE_MS        6000UL   /* duration of each BLE phase            */
-#define BLE_SCAN_MS         4000UL   /* active scan window within the phase   */
+#define BLE_PHASE_MS        3500UL   /* scan window + solve, on N1 and N2     */
+#define BLE_SCAN_MS         3000UL   /* active scan; a scanning node is off
+                                     * the air, so keep it under the slot-
+                                     * revocation limit below                */
 #define BLE_SCAN_INTERVAL    100     /* in 0.625 ms units -> 62.5 ms          */
 #define BLE_SCAN_WINDOW       80     /* in 0.625 ms units -> 50 ms            */
 #define BLE_ADV_MIN          0x20    /* in 0.625 ms units -> 20 ms            */

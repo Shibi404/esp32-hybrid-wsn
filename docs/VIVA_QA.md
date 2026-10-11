@@ -86,11 +86,29 @@ It is proximity rather than position: `argmax` of the filtered RSSI. It needs
 only one neighbour, works when trilateration cannot run, and is what many real
 deployments actually use ("which room is this tag in?").
 
-**Q. Why do you stop BLE before the Wi-Fi phase?**
-One 2.4 GHz radio serves both. With both stacks active the coexistence
-arbiter starves the BLE scan window and biases RSSI — the exact quantity we
-are measuring. `BLEDevice::deinit(true)` also returns ~60 kB of heap, which is
-what makes BLE + SoftAP + web server fit on the sink.
+**Q. One radio serves BLE and Wi-Fi. How do you stop them interfering?**
+By separating advertising from scanning. Advertising is a ~1 ms burst every
+few tens of milliseconds and coexists with Wi-Fi without trouble, so every
+node advertises continuously — which is also what makes an anchor usable, it
+has to be discoverable whenever somebody looks. Scanning is a continuous
+receive, and that is what actually conflicts: it starves the scan window and
+biases the RSSI we are trying to measure. Only N1 and N2 scan, and they pause
+network participation while they do. That matches the brief's node table,
+which lists BLE against N1 and N2 but not against N3 or N4.
+
+**Q. Why don't N3 and N4 scan?**
+N3 is the time master and scheduler; blocking it for three seconds would stop
+the superframe for everybody. N4 must keep the dashboard served. Both still
+advertise, so both are still full localization anchors — advertising is all an
+anchor has to do.
+
+**Q. What happens to a node's TDMA slot while it is scanning?**
+It is off the air for about 3 s, roughly 1.5 superframes, and its slot is
+logged as unused. The slot-revocation threshold is 4 superframes, so it keeps
+its slot. It also waits for its transmit queue to drain before leaving, so no
+frame is abandoned mid-handshake and no retries are wasted. This is ordinary
+duty-cycling behaviour, and the unused-slot logging it produces is exactly
+what the brief asks us to demonstrate.
 
 ---
 

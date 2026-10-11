@@ -19,10 +19,11 @@
               │ ESP-NOW + CSMA/CA up          │
               └───────────────┬───────────────┘
                               ▼
-                      ┌───────────────┐        sink only:
-                      │  role == SINK?│───yes──▶ skip to PHASE B
-                      └───────┬───────┘          and stay there
-                              │ no
+                      ┌───────────────┐        N3 and N4:
+                      │ N1 or N2?     │───no───▶ skip to PHASE B
+                      │ (the scanners)│          and stay there
+                      └───────┬───────┘          (they advertise only)
+                              │ yes
     ┌─────────────────────────▼─────────────────────────┐
     │                   PHASE A · BLE                   │
     │                                                   │
@@ -46,7 +47,7 @@
     │            │                                      │
     │            ▼                                      │
     │   feed BLE RSSI into the routing metric           │
-    │   BLEDevice::deinit(true)  → ~60 kB freed         │
+    │   (advertising never stopped, and does not now)   │
     └─────────────────────────┬─────────────────────────┘
                               ▼
     ┌─────────────────────────────────────────────────────┐

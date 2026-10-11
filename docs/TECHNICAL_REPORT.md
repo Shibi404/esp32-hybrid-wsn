@@ -62,29 +62,47 @@ to be recorded and printed as `1→3→4`.
 
 ### 2.1 Hybrid architecture and the single-radio constraint
 
-The ESP32 has one 2.4 GHz radio shared between Wi-Fi and Bluetooth. When both
-stacks transmit concurrently, the coexistence arbiter starves the BLE scan
-window and biases the measured RSSI — which is the precise quantity the
-localization result depends on. The two subsystems are therefore
-time-multiplexed, in the same order the evaluation guidelines specify:
+The ESP32 has one 2.4 GHz radio shared between Wi-Fi and Bluetooth.
+
+Advertising is a short burst every few tens of milliseconds and coexists with
+Wi-Fi without trouble. **Scanning** is a continuous receive, and that is what
+genuinely conflicts on a shared radio — it both starves the scan window and
+biases the RSSI the localization depends on. The split follows from that:
+
+* **Every node advertises, always.** That is what makes an anchor an anchor:
+  discoverable whenever somebody looks. It also removes a phase-alignment
+  problem — boards booted at different times would otherwise drift into
+  different phases and a scan could find no anchors at all.
+* **Only N1 and N2 scan**, pausing their network participation to do it. This
+  matches the node table in the brief exactly, where BLE is listed against N1
+  and N2 but not against the cluster head or the sink.
+* **N3 and N4 never scan.** N3 is the time master and scheduler — blocking it
+  for three seconds would stop the whole superframe. N4 must keep serving the
+  dashboard.
+
+A scanning node is off the air for about 3 s, roughly 1.5 superframes. The
+slot-revocation threshold is 4 superframes, comfortably clear of it, and the
+node waits for its transmit queue to drain before it leaves, so no frame is
+abandoned mid-handshake.
+
+N1 and N2 therefore alternate two phases, in the order the evaluation
+guidelines specify:
 
 ```
-   PHASE A · BLE   (~6 s)      PHASE B · Wi-Fi  (~30 s)
-   advertise + scan        →   beacon / schedule / time sync
-   RSSI → median → EWMA        CSMA/CA → TDMA transmission
-   → distance                  aggregation at N3
-   → trilateration             multi-hop → sink
-   → error, RMSE               metrics, dashboard, sleep
-   BLE deinit (~60 kB freed)
-            ↑                                    │
-            └────────────────────────────────────┘
+   PHASE A · BLE scan (~3.5 s)   PHASE B · Wi-Fi  (~30 s)
+   active scan              →    beacon / schedule / time sync
+   RSSI → median → EWMA          CSMA/CA → TDMA transmission
+   → distance                    aggregation at N3
+   → trilateration               multi-hop → sink
+   → error, RMSE                 metrics, dashboard, sleep
+            ↑                                      │
+            └──────────────────────────────────────┘
 ```
 
-Wi-Fi remains *initialised* throughout; only the BLE stack is cycled, so
-ESP-NOW peer registrations and the sink's SoftAP survive across phases. The
-sink is a deliberate exception: it advertises permanently so it is always
-usable as an anchor, but never scans and never leaves Phase B, because a
-blocking scan would stall the dashboard it must keep serving.
+Both stacks remain initialised throughout — ESP-NOW peer registrations, the
+sink's SoftAP and BLE advertising all persist across phases; only the scan
+comes and goes. N3 and N4 have no Phase A: the cluster head must keep the
+superframe running, and the sink must keep the dashboard reachable.
 
 ### 2.2 Where the two subsystems actually interact
 

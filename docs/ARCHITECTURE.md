@@ -88,22 +88,39 @@ shaded band is inherited from a library — that is the point of the exercise.
 
 ## 3. Why the two radios are time-multiplexed
 
-The ESP32 has **one** 2.4 GHz radio shared between Wi-Fi and Bluetooth. With
-both stacks transmitting, the coexistence arbiter starves the BLE scan window,
-and RSSI — the quantity the whole localization result depends on — becomes
-unstable and biased.
+The ESP32 has **one** 2.4 GHz radio shared between Wi-Fi and Bluetooth.
 
-The firmware therefore runs the two in alternating phases, which also happens
-to be exactly the demonstration sequence the guidelines specify:
+Advertising is a short burst every few tens of milliseconds and coexists with
+Wi-Fi without trouble. **Scanning** is a continuous receive, and that is what
+genuinely conflicts on a shared radio — it both starves the scan window and
+biases the RSSI the localization depends on. The split follows from that:
+
+* **Every node advertises, always.** That is what makes an anchor an anchor:
+  discoverable whenever somebody looks. It also removes a phase-alignment
+  problem — boards booted at different times would otherwise drift into
+  different phases and a scan could find no anchors at all.
+* **Only N1 and N2 scan**, pausing their network participation to do it. This
+  matches the node table in the brief exactly, where BLE is listed against N1
+  and N2 but not against the cluster head or the sink.
+* **N3 and N4 never scan.** N3 is the time master and scheduler — blocking it
+  for three seconds would stop the whole superframe. N4 must keep serving the
+  dashboard.
+
+A scanning node is off the air for about 3 s, roughly 1.5 superframes. The
+slot-revocation threshold is 4 superframes, comfortably clear of it, and the
+node waits for its transmit queue to drain before it leaves, so no frame is
+abandoned mid-handshake.
+
+N1 and N2 therefore alternate two phases, which is also the demonstration
+sequence the guidelines specify:
 
 ```
-   ┌── PHASE A · BLE ─────────────────── ~6 s ──┐
-   │  advertise + active scan                    │
+   ┌── PHASE A · BLE scan ───────────── ~3.5 s ─┐
+   │  active scan (advertising never stopped)    │
    │  RSSI samples → median → EWMA               │
    │  log-distance path loss → distance          │
    │  trilateration → (x, y) → error, RMSE       │
    │  BLE RSSI handed to the routing metric      │
-   │  BLEDevice::deinit(true) → ~60 kB freed     │
    └──────────────────┬──────────────────────────┘
                       ▼
    ┌── PHASE B · Wi-Fi ──────────────── ~30 s ──┐
@@ -116,13 +133,12 @@ to be exactly the demonstration sequence the guidelines specify:
                       └──────► back to Phase A
 ```
 
-Wi-Fi itself stays **initialised** throughout; only the BLE stack is cycled.
-That is what lets ESP-NOW peers and the sink's SoftAP survive across phases.
+Both stacks stay **initialised** throughout — ESP-NOW peers, the sink's SoftAP
+and BLE advertising all persist. Only the scan comes and goes.
 
-**The sink is the exception.** It advertises permanently (so it is always
-available as an anchor) but never scans, and never leaves Phase B — a blocking
-4-second scan would stall the dashboard it has to keep serving. This is a
-deliberate asymmetry: a mains-powered gateway trades energy for availability.
+N3 and N4 have no Phase A at all: the cluster head must keep the superframe
+running and the sink must keep the dashboard reachable. A mains-powered
+gateway trades energy for availability, which is the usual WSN asymmetry.
 
 ---
 

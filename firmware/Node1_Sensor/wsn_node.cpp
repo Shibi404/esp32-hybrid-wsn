@@ -501,8 +501,8 @@ static void enterPhase(NodePhase p) {
 }
 
 static void runBlePhase(void) {
-  /* One scan + solve per phase; the rest of the window is spent advertising
-   * so the other nodes can range against this one.                           */
+  /* One scan + solve per phase.  Advertising continues throughout, here and
+   * in every other phase, so this node stays rangeable by the others.       */
   static uint32_t lastRoundPhase = 0xFFFFFFFF;
 
   if (lastRoundPhase != s_phaseStart) {
@@ -527,11 +527,25 @@ static void runBlePhase(void) {
   if (millis() - s_phaseStart >= BLE_PHASE_MS) enterPhase(PHASE_WIFI_INIT);
 }
 
-static void runWifiInit(void) {
-  /* Release the BLE controller before the Wi-Fi phase.  The sink keeps
-   * advertising so it stays usable as a localization anchor.                 */
-  if (NODE_ROLE != ROLE_SINK || !SINK_BLE_ANCHOR) bleEnd();
+/* Only the sensor nodes scan.  Scanning is a continuous receive and is what
+ * genuinely conflicts with Wi-Fi on the shared radio; advertising is a short
+ * burst every few tens of milliseconds and coexists fine.  So every node
+ * advertises all the time -- which is also what makes an anchor an anchor,
+ * discoverable whenever somebody looks -- and only N1 and N2 ever stop
+ * attending the network to scan.
+ *
+ * This also removes a phase-alignment problem: because advertising never
+ * stops, a scanning node hears every anchor regardless of what phase those
+ * anchors happen to be in.  Boards booted at different times would otherwise
+ * drift apart and a scan could find nothing.
+ *
+ * It matches the node table in the brief exactly, where BLE is listed against
+ * N1 and N2 but not against the cluster head or the sink.                   */
+static bool nodeScansBle(void) {
+  return NODE_ID == NODE_N1 || NODE_ID == NODE_N2;
+}
 
+static void runWifiInit(void) {
   if (s_hooks.onWifiUp) s_hooks.onWifiUp();
 
   /* N1 reports the position it just computed, over Wi-Fi, to the sink.       */
@@ -580,13 +594,11 @@ void wsnNodeSetup(uint8_t id, NodeRole role, const NodeHooks *hooks) {
 
   cliBegin();
 
-  /* The sink advertises permanently so it is always usable as a localization
-   * anchor, but it never scans and never leaves the Wi-Fi phase: a blocking
-   * 4 s BLE scan would stall the dashboard it has to keep serving.          */
+  /* Advertising starts now and never stops, on every node.                  */
   if (SINK_BLE_ANCHOR || NODE_ROLE != ROLE_SINK) bleBegin();
 
-  if (NODE_ROLE == ROLE_SINK) enterPhase(PHASE_WIFI_INIT);
-  else                        enterPhase(PHASE_BLE);
+  if (nodeScansBle()) enterPhase(PHASE_BLE);
+  else                enterPhase(PHASE_WIFI_INIT);
 }
 
 void wsnNodeLoop(void) {
@@ -629,10 +641,12 @@ void wsnNodeLoop(void) {
   }
 
   /* Return to BLE periodically so localization is refreshed live rather than
-   * measured once at boot.  The sink is exempt -- it stays on the air.       */
-  if (NODE_ROLE != ROLE_SINK && millis() - s_phaseStart >= WIFI_PHASE_MS) {
+   * measured once at boot.  Wait for the transmit queue to drain first: a
+   * scan takes the node off the air for seconds, and abandoning a frame
+   * mid-handshake would burn its retries and look like a link failure.      */
+  if (nodeScansBle() && millis() - s_phaseStart >= WIFI_PHASE_MS &&
+      macQueueLen() == 0) {
     if (s_hooks.onWifiDown) s_hooks.onWifiDown();
-    bleBegin();
     enterPhase(PHASE_BLE);
   }
 }

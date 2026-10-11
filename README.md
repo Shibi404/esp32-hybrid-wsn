@@ -33,25 +33,38 @@ console and the dashboard — rather than being hidden inside a vendor library.
 
 ---
 
-## 2. Why BLE and Wi-Fi are time-phased
+## 2. How BLE and Wi-Fi share one radio
 
-The ESP32 has a **single 2.4 GHz radio**. Running the BLE stack and ESP-NOW concurrently
-starves the BLE scan window and destabilises RSSI — which is exactly the quantity this
-experiment measures. The firmware therefore alternates two phases, mirroring the
-demonstration flow required by the lab guidelines:
+The ESP32 has a **single 2.4 GHz radio**. Advertising is a short burst every few tens of
+milliseconds and coexists with Wi-Fi fine. *Scanning* is a continuous receive, and that is
+the part that genuinely conflicts — it starves the scan window and biases the RSSI the
+whole localization result rests on. So:
+
+- **Every node advertises, always.** That is what makes an anchor an anchor, and it means
+  a scanning node hears every anchor no matter what the others happen to be doing. (Boards
+  booted at different times would otherwise drift into different phases, and a scan could
+  find nothing at all.)
+- **Only N1 and N2 scan**, pausing network participation to do it — matching the brief's
+  node table, which lists BLE against N1 and N2 but not against the cluster head or sink.
+- **N3 and N4 never scan.** N3 is the time master; blocking it would stop the superframe.
+  N4 must keep serving the dashboard. Both still advertise, so both are still full
+  localization anchors.
+
+N1 and N2 therefore alternate two phases, mirroring the required demonstration flow:
 
 ```
-PHASE A — BLE  (~6 s)     advertise + scan → RSSI → distance → trilateration
-                          → nearest node → localization error → BLEDevice::deinit()
+PHASE A — BLE scan (~3.5 s)   RSSI → distance → trilateration
+                              → nearest node → localization error
                                    ↓
-PHASE B — WI-FI (~30 s)   beacon/schedule → CSMA/CA → TDMA transmission
-                          → aggregation → multi-hop → sink → metrics → sleep slots
+PHASE B — WI-FI (~30 s)       beacon/schedule → CSMA/CA → TDMA transmission
+                              → aggregation → multi-hop → sink → metrics → sleep
                                    ↓
                               (loops forever)
 ```
 
-`BLEDevice::deinit(true)` frees roughly 60 KB of RAM before Phase B, which is what allows
-the sink to run BLE **and** a SoftAP **and** a web server on one chip.
+A scanning node is off the air for about 1.5 superframes. The slot-revocation threshold is
+4 superframes, and the node drains its transmit queue before leaving, so nothing is
+abandoned mid-handshake.
 
 ---
 

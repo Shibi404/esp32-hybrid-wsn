@@ -34,7 +34,7 @@ end to end and tells you what to say at each step. Total running time about
 **Show:** N1's serial console during a BLE phase.
 
 ```
-[  12.340][N1][BLE  ][I] Scanning for 4 s ...
+[  12.340][N1][BLE  ][I] Scanning for 3 s ...
 [  16.410][N1][BLE  ][I] N2: RSSI med=-61 dBm (n=11, ewma=-60.8)  d_est=1.86 m  ...
 [  16.412][N1][BLE  ][I] N3: RSSI med=-68 dBm (n=9,  ewma=-67.4)  d_est=3.21 m  ...
 [  16.414][N1][BLE  ][I] N4: RSSI med=-64 dBm (n=12, ewma=-64.1)  d_est=2.37 m  ...
@@ -75,15 +75,15 @@ sense. Error is the Euclidean distance to the tape-measured truth."
 ### Step 4 · Wi-Fi initialisation
 
 ```
-[  18.500][N1][BLE  ][I] BLE down, controller memory released (free heap 184320 B)
 ========================= WI-FI NETWORK OPERATION =========================
 ```
 
-**Say:** "The ESP32 has one 2.4 GHz radio. Running BLE and ESP-NOW together
-starves the scan window and biases RSSI — the very thing we just measured — so
-we time-multiplex them, which is also the sequence the brief asks for.
-`BLEDevice::deinit(true)` returns about 60 kB, which is what lets the sink run
-BLE, a SoftAP and a web server on one chip."
+**Say:** "The ESP32 has one 2.4 GHz radio. Advertising is a short burst and
+coexists with Wi-Fi fine, so every node advertises continuously — that is what
+makes an anchor discoverable whenever somebody looks. Scanning is a continuous
+receive and that is what actually conflicts, so only N1 and N2 scan, and they
+step off the network to do it. N3 cannot: it is the time master. N4 cannot: it
+is serving the dashboard."
 
 ### Step 5 · Dynamic schedule assignment
 

@@ -253,6 +253,15 @@ void tdmaEnterSleep(uint32_t ms) {
   LOGD(TAG, "Sleeping %lu ms (slot %u is not mine and I need not listen)",
        (unsigned long)ms, tdmaCurrentSlot());
 
+#if !ENABLE_LIGHT_SLEEP && !ENABLE_RADIO_SLEEP
+  /* Scheduled sleep with the PHY left powered.  Stopping the Wi-Fi driver
+   * here would abort inside the coexistence layer, because the BT controller
+   * is advertising on the same radio -- see ENABLE_RADIO_SLEEP.  The node
+   * still honours the slot: it transmits nothing and listens to nothing.   */
+  delay(ms);
+  return;
+#endif
+
 #if ENABLE_LIGHT_SLEEP
   /* Whole-SoC light sleep.  esp_timer is RTC-backed, so millis() keeps
    * advancing across the sleep and the TDMA clock survives it.  Serial output
@@ -274,7 +283,7 @@ void tdmaEnterSleep(uint32_t ms) {
 
 /* Bring the radio back before a slot in which we transmit or receive.        */
 void tdmaWakeRadio(void) {
-#if !ENABLE_LIGHT_SLEEP
+#if !ENABLE_LIGHT_SLEEP && ENABLE_RADIO_SLEEP
   if (!s_radioOff) return;
   esp_wifi_start();
   esp_wifi_set_channel(WSN_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
@@ -549,10 +558,19 @@ void tdmaPrintStats(void) {
                 (unsigned long)t->beaconsRx, (unsigned long)t->beaconsMissed);
   Serial.printf("   Sleep slots        : %lu   (%lu ms total)\r\n",
                 (unsigned long)t->sleepSlots, (unsigned long)t->sleepMs);
-  Serial.printf("   Radio duty cycle   : %.1f %%  (sleep mode: %s)\r\n",
+  Serial.printf("   Active duty cycle  : %.1f %%  (sleep mode: %s)\r\n",
                 tdmaDutyCyclePct(),
-                ENABLE_LIGHT_SLEEP ? "light sleep" : "radio off");
+                ENABLE_LIGHT_SLEEP ? "light sleep"
+              : ENABLE_RADIO_SLEEP ? "radio powered down"
+                                   : "scheduled only - PHY stays on");
+#if !ENABLE_LIGHT_SLEEP && !ENABLE_RADIO_SLEEP
+  Serial.println("   NOTE: the schedule is honoured (no TX, no RX in sleep");
+  Serial.println("   slots) but the PHY is NOT powered down, so this figure is");
+  Serial.println("   scheduled sleep, not measured energy. See ENABLE_RADIO_");
+  Serial.println("   SLEEP in wsn_config.h for why, and how to enable it.");
+#else
   Serial.println("   (the last idle slot of each run is spent awake, so the");
   Serial.println("    PHY is back before the next slot that needs it)");
+#endif
   Serial.println();
 }

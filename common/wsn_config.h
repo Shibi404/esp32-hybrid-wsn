@@ -193,6 +193,32 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
  * tdmaShouldSleepNow().                                                     */
 #define RADIO_WAKE_SLOTS        1    /* idle slots reserved for PHY warm-up   */
 
+/* -----------------------------------------------------------------------------
+ *  RADIO POWER-DOWN DURING SLEEP SLOTS
+ *
+ *  0 = observe the schedule but leave the PHY powered  (DEFAULT, stable)
+ *  1 = actually call esp_wifi_stop() in sleep slots
+ *
+ *  Setting this to 1 crashes any node that also has BLE running.  The ESP32
+ *  shares one radio between Wi-Fi and Bluetooth, and tearing the Wi-Fi driver
+ *  down while the BT controller is live sends the coexistence layer into an
+ *  abort().  It showed up here as a boot loop on exactly N1 and N2 -- the two
+ *  nodes that both duty-cycle and advertise over BLE -- while N3 and N4, which
+ *  never sleep, ran perfectly.
+ *
+ *  With this at 0 the scheduler still does everything it should: it decides
+ *  which slots a node must be awake for, marks the rest as sleep slots, drops
+ *  the LED and counts them.  What it does NOT do is claim an energy saving it
+ *  is not making -- `sched` reports the figure as scheduled sleep and says the
+ *  PHY stayed on.
+ *
+ *  To demonstrate genuine power-down, set this to 1 AND set SINK_BLE_ANCHOR 0
+ *  on a node that does not need to advertise, so Wi-Fi is cycled with the BT
+ *  controller down.  ENABLE_LIGHT_SLEEP is the better long-term answer: light
+ *  sleep resumes in milliseconds and does not restart the driver.
+ * -------------------------------------------------------------------------- */
+#define ENABLE_RADIO_SLEEP      0
+
 #define ENABLE_LIGHT_SLEEP      0    /* 0 = radio-off sleep (esp_wifi_stop),
                                       *     CPU stays alive so serial logging
                                       *     keeps running -- best for a demo.

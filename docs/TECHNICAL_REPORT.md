@@ -342,13 +342,25 @@ A node that owns a slot but has nothing queued when the slot ends logs it as
 unused; the counter feeds the head's reclamation logic, and no airtime is
 spent on an empty transmission.
 
-Sleep is real rather than simulated. `esp_wifi_stop()` powers down the Wi-Fi
-MAC and PHY — roughly 40 mA on an ESP32 — and the radio is restarted before
-the next slot in which the node must transmit or receive. The CPU remains
-awake so the serial log continues to narrate, which is the right trade for a
-demonstration. `ENABLE_LIGHT_SLEEP` switches to `esp_light_sleep_start()`,
-sleeping the whole SoC to under a milliamp; `millis()` survives it because
-`esp_timer` is RTC-backed.
+**Radio power-down is implemented but disabled by default, for a reason worth
+stating.** `esp_wifi_stop()` does power down the Wi-Fi MAC and PHY — roughly
+40 mA on an ESP32 — but the ESP32 shares one radio between Wi-Fi and
+Bluetooth, and tearing the Wi-Fi driver down while the BT controller is live
+drives the coexistence layer into an `abort()`. In testing this appeared as a
+boot loop on exactly N1 and N2, the two nodes that both duty-cycle and
+advertise over BLE, while N3 and N4 — which never sleep — ran without fault.
+
+With `ENABLE_RADIO_SLEEP` at 0 the scheduler still does its job in full: it
+determines which slots each node must be awake for, marks the remainder as
+sleep slots, extinguishes the activity LED and accounts for them. What it does
+not do is claim an energy saving it is not making. The `sched` command reports
+the figure explicitly as *scheduled* sleep and states that the PHY remained
+powered.
+
+Genuine power-down requires the BT controller to be down on the same node, or
+`esp_light_sleep_start()`, which resumes in milliseconds rather than
+restarting the driver and does not provoke the coexistence fault. Both paths
+are present behind compile-time flags.
 
 A node is awake for the beacon slot, its own slots, the contention period, and
 any slot in which it may have to receive. The sink never sleeps: it is

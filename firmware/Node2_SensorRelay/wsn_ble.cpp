@@ -340,6 +340,17 @@ bool bleRunRound(void) {
   s_loc.trueX = NODE_POS[NODE_ID].x;
   s_loc.trueY = NODE_POS[NODE_ID].y;
 
+  /* An anchor already knows where it is -- it is one of the references.  It
+   * still scans, because neighbour discovery and ranging are useful to it
+   * (the RSSI feeds the routing metric), but asking it to trilaterate itself
+   * from the two remaining anchors is both meaningless and impossible.     */
+  if (NODE_IS_ANCHOR[NODE_ID]) {
+    LOGI(TAG, "This node is an anchor at (%.2f, %.2f) m - neighbour discovery "
+              "and ranging done, no position to solve", s_loc.trueX, s_loc.trueY);
+    s_loc.valid = false;
+    return false;
+  }
+
   if (na < 3) {
     LOGW(TAG, "Localization needs 3 anchors, heard %u. Reporting proximity "
               "only this round.", na);

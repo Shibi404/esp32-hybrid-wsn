@@ -40,6 +40,7 @@ static uint32_t s_lastAggSf      = 0xFFFFFFFF;
 static uint32_t s_lastHelloSf    = 0xFFFFFFFF;
 static uint32_t s_lastStatusSf   = 0xFFFFFFFF;
 static uint32_t s_lastReviewSf   = 0xFFFFFFFF;
+static bool     s_locPending     = false;
 static bool     s_collideArmed   = false;
 static bool     s_collideHard    = false;
 
@@ -207,6 +208,7 @@ static void onFrame(const WsnHeader *h, const uint8_t *pl, size_t plen, int8_t r
         /* Credit the aggregate's byte saving at the sink too, so the sink's
          * dashboard can show the reduction without having to ask N3.        */
         metricsNoteAggregation(a->rawPackets, a->rawBytes, a->aggBytes);
+        metricsNoteAggregatedSources(a->srcMask, a->nSamples);
         char path[20];
         wsnPathToString(h, path, sizeof(path));
         LOGI(TAG, "AGGREGATE from N%u: %u readings, sources mask 0x%02X, "
@@ -478,6 +480,15 @@ static void runSlotActions(void) {
 
     announceRouteIfPending();
 
+    /* Deliver the latest localization result to the sink.  Retried here each
+     * superframe until a route exists, which it will not immediately after
+     * boot.                                                                 */
+    if (s_locPending && s_hasLoc) {
+      const uint8_t next = routeNextHop(SINK_ID);
+      if (next && macSend(FT_LOC, next, SINK_ID, &s_lastLoc, sizeof(s_lastLoc)))
+        s_locPending = false;
+    }
+
     /* Collision demonstration: N1 and N2 were both granted this slot, so they
      * both have a unicast ready at the same instant.                        */
     if (s_collideArmed) {
@@ -548,11 +559,10 @@ static bool nodeScansBle(void) {
 static void runWifiInit(void) {
   if (s_hooks.onWifiUp) s_hooks.onWifiUp();
 
-  /* N1 reports the position it just computed, over Wi-Fi, to the sink.       */
-  if (NODE_ID == NODE_N1 && s_hasLoc) {
-    const uint8_t next = routeNextHop(SINK_ID);
-    if (next) macSend(FT_LOC, next, SINK_ID, &s_lastLoc, sizeof(s_lastLoc));
-  }
+  /* Queue the position for the sink.  There may be no route yet on the very
+   * first pass after boot, so it is flagged and retried from the contention
+   * slot rather than silently dropped.                                      */
+  if (NODE_ID == NODE_N1 && s_hasLoc) s_locPending = true;
 
   enterPhase(PHASE_WIFI);
 }

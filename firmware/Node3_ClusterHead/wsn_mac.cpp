@@ -52,7 +52,8 @@ static uint32_t     s_lastSlotUs = 0;
 static uint32_t     s_senseStartMs = 0;
 static uint32_t     s_idleSinceUs  = 0;
 static uint32_t     s_ackDeadlineMs = 0;
-static uint16_t     s_seqCounter = 0;
+static uint16_t     s_seqCounter  = 0;   /* control frames                  */
+static uint16_t     s_dataSeq     = 0;   /* data-bearing frames only        */
 static bool         s_ready      = false;
 
 /* --- carrier sense -------------------------------------------------------- */
@@ -285,7 +286,14 @@ bool macSend(uint8_t type, uint8_t dst, uint8_t finalDst,
   }
 
   wsnInitHeader(&it->h, type, NODE_ID, dst, finalDst);
-  it->h.seq = ++s_seqCounter;
+
+  /* Data-bearing frames get their own sequence space.  The sink derives PDR
+   * and loss from gaps in a source's sequence numbers, so if HELLOs and
+   * beacons shared the counter every data frame would appear to be preceded
+   * by several lost ones and PDR would read far below its true value.
+   * Only one unicast is ever in flight per node, so the two spaces cannot
+   * make an ACK ambiguous.                                                  */
+  it->h.seq = (type == FT_DATA || type == FT_AGG) ? ++s_dataSeq : ++s_seqCounter;
   if (payloadLen && payload) memcpy(it->payload, payload, payloadLen);
   it->payloadLen = payloadLen;
   it->needsAck   = (dst != BROADCAST_ID) && (type != FT_ACK);

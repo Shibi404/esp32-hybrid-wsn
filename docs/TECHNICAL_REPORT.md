@@ -496,11 +496,21 @@ Failover latency (detection → alternate route) is measured and reported.
 
 Four are required; all seven are implemented.
 
-Two measurement decisions are worth stating. `expected` is derived from the
-observed sequence span rather than from a count the source claims to have
-sent — that is the honest definition at a receiver, because it counts packets
-the sink never heard about. And duplicates are detected and discarded before
-counting, since otherwise PDR could exceed 100 %.
+Three measurement decisions are worth stating.
+
+`expected` is derived from the observed sequence span rather than from a count
+the source claims to have sent — that is the honest definition at a receiver,
+because it counts packets the sink never heard about. Duplicates are detected
+and discarded before counting, since otherwise PDR could exceed 100 %.
+
+Data-bearing frames carry their own sequence space, separate from HELLOs and
+beacons. Sharing one counter would make every data frame appear to be preceded
+by several lost ones, and PDR would read far below its true value.
+
+While aggregation is working, a sensor node's raw packets stop at the cluster
+head by design and never reach the sink, so its *direct* PDR is not its
+delivery evidence. The sink instead credits each contributor named in a
+delivered aggregate's source mask, and reports that as a separate column.
 
 Delay samples taken before the clocks converge (which can occur for the first
 frame after a resync) are discarded rather than folded in as zero.

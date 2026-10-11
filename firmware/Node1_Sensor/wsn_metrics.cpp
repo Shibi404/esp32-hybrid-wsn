@@ -97,6 +97,16 @@ void metricsNoteAggregation(uint16_t rawPackets, uint16_t rawBytes,
          s_agg.byteReductionPct, s_agg.packetReductionPct);
 }
 
+void metricsNoteAggregatedSources(uint8_t srcMask, uint8_t nSamples) {
+  (void)nSamples;
+  for (uint8_t i = 1; i <= NUM_NODES; i++) {
+    if (srcMask & (uint8_t)(1u << (i - 1))) {
+      s_src[i].readingsViaAgg++;
+      s_src[i].seen = true;
+    }
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 
 const SrcMetrics *metricsForSource(uint8_t id) {
@@ -177,18 +187,24 @@ void metricsPrint(void) {
   Serial.println("  --- PERFORMANCE ANALYSIS -----------------------------------");
   Serial.printf("   Measurement window : %lu s\r\n", (unsigned long)el);
   Serial.println();
-  Serial.println("   Per source:");
-  Serial.println("    src   rx     exp    lost   PDR%    avgDelay  maxDelay  hops  path");
+  Serial.println("   Per source (direct packets delivered to the sink):");
+  Serial.println("    src   rx     exp    lost   PDR%    avgDelay  maxDelay  "
+                 "viaAgg  hops  path");
   for (uint8_t i = 1; i <= NUM_NODES; i++) {
     const SrcMetrics &m = s_src[i];
     if (!m.seen) continue;
     const uint32_t avg = m.delayCount ? (uint32_t)(m.delaySumMs / m.delayCount) : 0;
-    Serial.printf("    N%-4u %-6lu %-6lu %-6lu %-7.2f %-9lu %-9lu %-5u %s\r\n",
+    Serial.printf("    N%-4u %-6lu %-6lu %-6lu %-7.2f %-9lu %-9lu %-7lu %-5u %s\r\n",
                   i, (unsigned long)m.rxPackets, (unsigned long)m.expected,
                   (unsigned long)m.lost, metricsPdr(i) * 100.0f,
                   (unsigned long)avg, (unsigned long)m.delayMax,
+                  (unsigned long)m.readingsViaAgg,
                   m.lastHops, m.lastPath);
   }
+  Serial.println("    'viaAgg' = readings that reached the sink inside an");
+  Serial.println("    aggregate. While aggregation is working, a sensor node's");
+  Serial.println("    raw packets stop at the cluster head by design, so that");
+  Serial.println("    column - not its direct PDR - is its delivery evidence.");
 
   Serial.println();
   Serial.println("   Network totals:");

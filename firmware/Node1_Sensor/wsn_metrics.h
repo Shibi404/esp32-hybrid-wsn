@@ -44,6 +44,8 @@ typedef struct {
   uint32_t delayCount;
   uint32_t firstRxMs, lastRxMs;
   uint32_t retxReported;     /* cumulative retransmissions at the source      */
+  uint32_t readingsViaAgg;   /* readings that reached the sink inside an
+                              * aggregate rather than as their own packet    */
   uint8_t  lastHops;
   char     lastPath[20];
 } SrcMetrics;
@@ -65,6 +67,11 @@ void metricsNoteRx(const WsnHeader *h, size_t frameLen, size_t payloadLen,
 /* Aggregator side: record one aggregation event.                             */
 void metricsNoteAggregation(uint16_t rawPackets, uint16_t rawBytes,
                             uint16_t aggBytes);
+/* Sink side: credit each node that contributed to a delivered aggregate.
+ * Without this a sensor node shows no end-to-end delivery at all once
+ * aggregation is working, because its raw packets stop at the cluster head
+ * by design.                                                                */
+void metricsNoteAggregatedSources(uint8_t srcMask, uint8_t nSamples);
 
 const SrcMetrics *metricsForSource(uint8_t id);
 const AggMetrics *metricsAgg(void);

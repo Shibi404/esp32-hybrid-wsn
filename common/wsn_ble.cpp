@@ -121,29 +121,39 @@ void bleBegin(void) {
   char devName[16];
   snprintf(devName, sizeof(devName), "%s%u", BLE_NAME_PREFIX, NODE_ID);
 
+  /* The Bluedroid stack wants roughly 60-70 kB of heap.  Log what is actually
+   * available before and after, because an out-of-memory failure inside
+   * BLEDevice::init() surfaces as a bare abort() with no explanation.      */
+  const uint32_t heapBefore = ESP.getFreeHeap();
+  if (heapBefore < 90000UL) {
+    LOGE(TAG, "Only %lu B of heap free - BLE init needs ~70 kB and will "
+              "probably abort. Not starting BLE.", (unsigned long)heapBefore);
+    return;
+  }
+
   BLEDevice::init(devName);
 
   /* --- advertising: make this node discoverable by every other node ------ */
   BLEAdvertising *adv = BLEDevice::getAdvertising();
+  if (!adv) { LOGE(TAG, "BLEDevice::getAdvertising() returned null"); return; }
 
+  /* Flags (3 B) + the name (2 + 6 B) is 11 of the 31 bytes an advertisement
+   * allows, so no scan response is needed and none is configured.  An unused
+   * scan-response payload is a portability hazard across Arduino-ESP32
+   * versions and buys nothing here.                                        */
   BLEAdvertisementData advData;
   advData.setFlags(0x06);          /* LE General Discoverable, BR/EDR not supported */
   advData.setName(devName);
   adv->setAdvertisementData(advData);
 
-  /* Repeat the name in the scan response as well.  An active scanner then
-   * gets it even if the primary advertisement is truncated by the stack.   */
-  BLEAdvertisementData scanRsp;
-  scanRsp.setName(devName);
-  adv->setScanResponseData(scanRsp);
-
   adv->setMinInterval(BLE_ADV_MIN);
   adv->setMaxInterval(BLE_ADV_MAX);
-  adv->setScanResponse(true);
+  adv->setScanResponse(false);
   BLEDevice::startAdvertising();
 
   /* --- scanning: discover the neighbours ---------------------------------- */
   s_scan = BLEDevice::getScan();
+  if (!s_scan) { LOGE(TAG, "BLEDevice::getScan() returned null"); return; }
   s_scan->setAdvertisedDeviceCallbacks(&s_scanCb, /*wantDuplicates=*/true);
   s_scan->setActiveScan(true);       /* request scan responses                */
   s_scan->setInterval(BLE_SCAN_INTERVAL);
@@ -156,6 +166,9 @@ void bleBegin(void) {
   s_active = true;
   LOGI(TAG, "BLE up: advertising as \"%s\", active scan %d/%d (interval/window, "
             "x0.625 ms)", devName, BLE_SCAN_INTERVAL, BLE_SCAN_WINDOW);
+  LOGI(TAG, "BLE stack cost %lu B of heap (%lu B free, was %lu B)",
+       (unsigned long)(heapBefore - ESP.getFreeHeap()),
+       (unsigned long)ESP.getFreeHeap(), (unsigned long)heapBefore);
 }
 
 void bleEnd(void) {

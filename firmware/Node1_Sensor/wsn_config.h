@@ -16,6 +16,31 @@
 #include <Arduino.h>
 
 /* -----------------------------------------------------------------------------
+ * 0.  TOOLCHAIN REQUIREMENT
+ *
+ * Arduino-ESP32 3.0.0 or newer is required.
+ *
+ * On 2.0.x this firmware builds cleanly and then aborts at boot, inside the
+ * Wi-Fi/BT coexistence layer, the moment BLE is initialised while Wi-Fi is
+ * already running:
+ *
+ *     coex_core_disable  <-  coex_core_condition_check  <-  hli_intr_register
+ *     <-  triggerApbChangeCallback  <-  BLEDevice::getScan()  <-  bleBegin()
+ *
+ * It presents as a boot loop with a backtrace and no message, which is a
+ * miserable thing to debug on demonstration day -- so it fails here instead,
+ * with an explanation. Install "esp32 by Espressif" 3.0.1 or later through
+ * Boards Manager.
+ *
+ * All four nodes must run the SAME core version. Mixed builds across a
+ * network are their own category of confusing.
+ * -------------------------------------------------------------------------- */
+#if !defined(WSN_ALLOW_UNTESTED_CORE) && \
+    defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR < 3)
+  #error "Arduino-ESP32 3.0.0+ required. On 2.0.x this aborts at boot in the Wi-Fi/BT coexistence layer during BLE init. Update the esp32 board package in Boards Manager. Define WSN_ALLOW_UNTESTED_CORE to override."
+#endif
+
+/* -----------------------------------------------------------------------------
  * 1.  NODE IDENTITY
  *
  * NODE_ID and NODE_ROLE are *runtime* globals, defined by each sketch's .ino

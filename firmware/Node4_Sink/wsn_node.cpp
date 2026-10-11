@@ -588,12 +588,22 @@ void wsnNodeSetup(uint8_t id, NodeRole role, const NodeHooks *hooks) {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
-  /* Wi-Fi comes up first and stays up for the whole run.  ESP-NOW peers and
-   * (on the sink) the SoftAP therefore survive across BLE phases; only the
-   * BLE stack is cycled.                                                     */
-  wifiBringUp();
   logBanner();
   LOGI(TAG, "Sensor fitted: %s", sensorsName());
+
+  /* BLE comes up BEFORE Wi-Fi.
+   *
+   * Both share one radio, and the coexistence layer expects Bluetooth to
+   * claim it first.  Starting BLE afterwards, with Wi-Fi already running, is
+   * what aborts on Arduino-ESP32 2.0.x; initialising in this order is the
+   * documented-safe sequence and costs nothing on 3.x.
+   *
+   * Advertising then runs for the whole session -- that is what makes a node
+   * usable as a localization anchor -- while Wi-Fi stays up alongside it, so
+   * ESP-NOW peers and the sink's SoftAP persist across BLE scan phases.     */
+  if (SINK_BLE_ANCHOR || role != ROLE_SINK) bleBegin();
+
+  wifiBringUp();
 
   sensorsBegin();
   metricsBegin();
@@ -607,9 +617,6 @@ void wsnNodeSetup(uint8_t id, NodeRole role, const NodeHooks *hooks) {
   }
 
   cliBegin();
-
-  /* Advertising starts now and never stops, on every node.                  */
-  if (SINK_BLE_ANCHOR || NODE_ROLE != ROLE_SINK) bleBegin();
 
   if (nodeScansBle()) enterPhase(PHASE_BLE);
   else                enterPhase(PHASE_WIFI_INIT);

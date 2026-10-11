@@ -18,11 +18,24 @@
  * -------------------------------------------------------------------------- */
 const uint8_t NODE_MAC[NUM_NODES + 1][6] = {
   { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },   /* [0] unused                     */
-  { 0x24, 0x6F, 0x28, 0x00, 0x00, 0x01 },   /* [1] N1  Sensor      (DHT22)    */
-  { 0x24, 0x6F, 0x28, 0x00, 0x00, 0x02 },   /* [2] N2  Sensor/Relay(MQ2)      */
-  { 0x24, 0x6F, 0x28, 0x00, 0x00, 0x03 },   /* [3] N3  Cluster head(MQ135)    */
-  { 0x24, 0x6F, 0x28, 0x00, 0x00, 0x04 }    /* [4] N4  Sink        (PIR)      */
+  { 0xB0, 0xCB, 0xD8, 0x0C, 0xDB, 0xA8 },   /* [1] N1  Sensor      (DHT22)    */
+  { 0xB0, 0xCB, 0xD8, 0x0A, 0x7A, 0xB8 },   /* [2] N2  Sensor/Relay(MQ2)      */
+  { 0xB0, 0xCB, 0xD8, 0x0A, 0x93, 0x88 },   /* [3] N3  Cluster head(MQ135)    */
+  { 0xB0, 0xCB, 0xD8, 0x0A, 0x7A, 0x38 }    /* [4] N4  Sink        (PIR)      */
 };
+
+/*  ---- LABEL YOUR BOARDS ----------------------------------------------------
+ *  Write the node number on each board with tape before you flash anything.
+ *  Two of these differ only in the last byte:
+ *
+ *      N2  B0:CB:D8:0A:7A:B8        <-- ...7A:B8
+ *      N4  B0:CB:D8:0A:7A:38        <-- ...7A:38
+ *
+ *  Mixing those two up puts the sink's firmware on a sensor node, and the
+ *  symptom is a network that half-works in a confusing way.  The boot banner
+ *  does catch it -- it compares this table against the board's own MAC and
+ *  prints a warning -- so read the banner on every board after flashing.
+ * ------------------------------------------------------------------------- */
 
 const uint8_t BROADCAST_MAC[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 

@@ -210,7 +210,14 @@ Then in Arduino IDE, open and upload each sketch to its board:
 
 ---
 
-## 5. Running the demonstration
+## 5. First time? Bring it up in stages
+
+**[docs/BRINGUP.md](docs/BRINGUP.md)** walks the whole thing from an unpowered
+bench to a captured dataset: hardware safety checks, MAC collection, sensors
+one node at a time, then N3+N4, then N2, then N1 — so every failure has
+exactly one possible cause. Do that before the demonstration script below.
+
+## 6. Running the demonstration
 
 Follow **[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)**. The condensed sequence:
 
@@ -254,7 +261,7 @@ Follow **[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)**. The condensed sequence:
 
 ---
 
-## 6. Performance metrics
+## 7. Performance metrics
 
 All seven metrics named in the guidelines are measured (the requirement is four):
 
@@ -270,10 +277,11 @@ All seven metrics named in the guidelines are measured (the requirement is four)
 
 ---
 
-## 7. Documentation
+## 8. Documentation
 
 | Document | Contents |
 |---|---|
+| [docs/BRINGUP.md](docs/BRINGUP.md) | **Start here** — staged bring-up and testing, one node at a time |
 | [docs/WIRING.md](docs/WIRING.md) | Circuit/network setup, pin tables, power budget, safety |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture diagram, protocol stack, frame formats |
 | [docs/FLOWCHART.md](docs/FLOWCHART.md) | State machines and protocol flowcharts |
@@ -284,6 +292,6 @@ All seven metrics named in the guidelines are measured (the requirement is four)
 
 ---
 
-## 8. License
+## 9. License
 
 Academic coursework. Reuse freely with attribution.

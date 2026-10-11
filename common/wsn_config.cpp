@@ -58,6 +58,32 @@ bool NODE_IS_ANCHOR[NUM_NODES + 1] = { false, false, true, true, true };
 
 const char *NODE_NAME[NUM_NODES + 1] = { "??", "N1", "N2", "N3", "N4" };
 
+/* -----------------------------------------------------------------------------
+ *  >>> STEP 3 (optional): INTENDED TOPOLOGY <<<
+ *
+ *  1 = the two nodes may use each other as a next hop; 0 = they may not.
+ *  Row/column 0 is unused.  The matrix is symmetric.
+ *
+ *  The single 0 pair, N1<->N4, is what forces N1's traffic through a relay
+ *  and so makes the multi-hop, aggregation and route-recovery behaviour real
+ *  on a bench where every board can hear every other.  If you space the nodes
+ *  out so that N1 genuinely cannot reach the sink, set this to all 1s and the
+ *  cost metric will discover the same topology by itself.
+ *
+ *            N1  N2  N3  N4                                                  */
+const uint8_t ROUTE_LINK_ALLOWED[NUM_NODES + 1][NUM_NODES + 1] = {
+  { 0,  0,  0,  0,  0 },   /* [0] unused                                     */
+  { 0,  0,  1,  1,  0 },   /* N1: may use N2 or N3   -- NOT the sink directly */
+  { 0,  1,  0,  1,  1 },   /* N2: may use N1, N3 or the sink                 */
+  { 0,  1,  1,  0,  1 },   /* N3: may use N1, N2 or the sink                 */
+  { 0,  0,  1,  1,  0 }    /* N4: may use N2 or N3                           */
+};
+
+bool routeLinkAllowed(uint8_t a, uint8_t b) {
+  if (a < 1 || a > NUM_NODES || b < 1 || b > NUM_NODES) return false;
+  return ROUTE_LINK_ALLOWED[a][b] != 0;
+}
+
 /* -------------------------------------------------------------------------- */
 
 uint8_t wsnNodeIdFromMac(const uint8_t *mac) {

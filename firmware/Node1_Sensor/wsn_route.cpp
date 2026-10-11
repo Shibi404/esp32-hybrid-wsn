@@ -142,6 +142,9 @@ static uint16_t computeCost(uint8_t id) {
 
   if (!n.known)  return ROUTE_COST_INF;
   if (!n.linkUp) return ROUTE_COST_INF;                       /* availability */
+  /* Topology constraint: this pair is not a usable link in the deployment
+   * we are modelling.  See ROUTE_LINK_ALLOWED in wsn_config.cpp.            */
+  if (!routeLinkAllowed(NODE_ID, id)) return ROUTE_COST_INF;
   if (millis() - n.lastHeardMs > NEIGHBOR_TIMEOUT_MS) return ROUTE_COST_INF;
   if (n.hopsToSink == 0xFF) return ROUTE_COST_INF;            /* no path      */
 
@@ -158,6 +161,16 @@ static uint16_t computeCost(uint8_t id) {
           + (float)ROUTE_W_RSSI * (1.0f - rssiNorm(rssi))
           + (float)ROUTE_W_ACK  * (1.0f - ackRate)
           + (float)ROUTE_W_LOSS * lossRate;
+
+  /* Prefer the cluster head: a sensor node reporting to its head is what
+   * makes aggregation possible, and routing around the head would deliver
+   * the same readings in three times as many packets.  It is a discount, not
+   * a hard rule -- once the head's link degrades or fails, the arithmetic
+   * lets an ordinary neighbour win.                                         */
+  if (id == CLUSTER_HEAD_ID &&
+      (NODE_ROLE == ROLE_SENSOR || NODE_ROLE == ROLE_SENSOR_RELAY)) {
+    c -= (float)ROUTE_W_CH_BONUS;
+  }
 
   if (c < 0.0f) c = 0.0f;
   if (c >= (float)ROUTE_COST_INF) return ROUTE_COST_INF - 1;
@@ -212,14 +225,21 @@ bool routeRecompute(void) {
 uint8_t routeNextHop(uint8_t finalDst) {
   if (finalDst == NODE_ID) return 0;
 
-  /* A directly reachable, healthy destination is always one hop away.        */
-  if (finalDst >= 1 && finalDst <= NUM_NODES) {
+  /* Traffic for the sink always follows the computed route.  Deliberately no
+   * "destination is a neighbour, send it straight there" shortcut: on a bench
+   * every node can hear the sink, so that shortcut would collapse the network
+   * to one hop and neither multi-hop forwarding nor aggregation would ever
+   * run.  The direct link is still chosen when the cost metric says it is
+   * best and the topology permits it.                                       */
+  if (finalDst == SINK_ID) return s_rt.nextHop;
+
+  /* For any other destination, hand it over directly when that link is
+   * permitted and healthy; otherwise fall back to the route toward the sink. */
+  if (finalDst >= 1 && finalDst <= NUM_NODES && routeLinkAllowed(NODE_ID, finalDst)) {
     Neighbor &d = s_nbr[finalDst];
     if (d.known && d.linkUp && (millis() - d.lastHeardMs) <= NEIGHBOR_TIMEOUT_MS)
       return finalDst;
   }
-
-  /* Otherwise relay through the current best next hop toward the sink.       */
   return s_rt.nextHop;
 }
 

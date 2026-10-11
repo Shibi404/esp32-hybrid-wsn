@@ -272,13 +272,17 @@ static void onFrame(const WsnHeader *h, const uint8_t *pl, size_t plen, int8_t r
       if (c->target != BROADCAST_ID && c->target != NODE_ID) break;
 
       switch (c->cmd) {
+        /* Only the named node acts on this.  Its neighbours are deliberately
+         * NOT told the link is gone -- they have to DETECT it themselves
+         * through ACK timeouts and silence, which is precisely the step the
+         * evaluation asks us to demonstrate.  Telling them would skip it.
+         * (`faillink <id>` on a console forces one local link down instead,
+         * for when you want to steer a specific route by hand.)            */
         case CMD_FAIL_LINK:
           if ((uint8_t)c->arg == NODE_ID) wsnNodeSetSimulatedDown(true);
-          else                            routeForceLinkState((uint8_t)c->arg, false);
           break;
         case CMD_RECOVER_LINK:
           if ((uint8_t)c->arg == NODE_ID) wsnNodeSetSimulatedDown(false);
-          else                            routeForceLinkState((uint8_t)c->arg, true);
           break;
         case CMD_COLLIDE:
           if (NODE_ID == NODE_N1 || NODE_ID == NODE_N2) {

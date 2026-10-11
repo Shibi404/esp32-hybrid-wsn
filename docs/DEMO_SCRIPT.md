@@ -253,8 +253,10 @@ RSSI can look healthy on a link that is failing."
 
 ### Step 13 · **Link failure, detection, recovery** (all five steps required)
 
-Press **Fail N3** on the dashboard, or type `fail 3`. *(Unplugging N3
-physically is even more convincing — the silence detector catches it.)*
+Press **Fail N3** on the dashboard, or type `fail 3`. Only N3 is told; its
+neighbours are deliberately left to work the failure out for themselves, which
+is the step the brief asks you to demonstrate. *(Unplugging N3 physically is
+even more convincing — the silence detector catches that too.)*
 
 ```
 N3: *** SIMULATED NODE FAILURE - THIS NODE IS NOW 'DEAD' ***

@@ -137,13 +137,32 @@ mandatory 3.3 V supply rule for both MQ sensors and the ADC1 pin requirement.
 2. Note the printed `STA MAC` for each.
 3. Paste all four into the `NODE_MAC` table in **`common/wsn_config.cpp`**.
 
-### 4.5 Set the anchor coordinates
+### 4.5 Check the intended topology
+
+On a bench every board can hear every other, so each node could reach the sink
+in one hop and the multi-hop, aggregation and route-recovery mechanisms would
+never run. `ROUTE_LINK_ALLOWED` in `common/wsn_config.cpp` declares the
+topology the deployment is meant to have -- N1 has no direct link to the sink:
+
+```
+   N1 ---- N2 ---- N4         primary:   N1 -> N3 -> N4,  N2 -> N3 -> N4
+     \     /      /           alternate: N1 -> N2 -> N4  (after N3 fails)
+      \   /      /
+       N3 ------'
+```
+
+This is a routing-policy constraint, stated openly, not a claim about radio
+range. If you space the nodes far enough apart that N1 genuinely cannot reach
+the sink, set every entry to 1 and the cost metric will find the same topology
+on its own.
+
+### 4.6 Set the anchor coordinates
 
 In `common/wsn_config.cpp`, set `NODE_POS[]` to the tape-measured positions (metres) of
 N2, N3 and N4 in the lab, and N1's true position for the localization-error calculation.
 Defaults assume a 4.0 m × 3.0 m area.
 
-### 4.6 Build and flash
+### 4.7 Build and flash
 
 ```bash
 python tools/sync_common.py          # copy common/ into the four sketch folders
@@ -158,7 +177,7 @@ Then in Arduino IDE, open and upload each sketch to its board:
 | `firmware/Node3_ClusterHead/Node3_ClusterHead.ino` | the board with the MQ135 |
 | `firmware/Node4_Sink/Node4_Sink.ino` | the board with the PIR |
 
-### 4.7 Open the dashboard
+### 4.8 Open the dashboard
 
 1. Power all four nodes.
 2. On a phone or laptop, join the Wi-Fi network **`WSN_SINK`** (password `wsnlab2024`).
@@ -201,7 +220,9 @@ Follow **[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)**. The condensed sequence:
 | `calib` | Calibrate MQ R0 in clean air (saved to NVS) |
 | `calib1m <id>` | Record BLE RSSI at exactly 1 m from node `<id>` |
 | `settrue <x> <y>` | Set N1's tape-measured true position |
-| `fail <id>` / `recover <id>` | Simulate / clear a link failure |
+| `fail <id>` | Make node `<id>` play dead; neighbours must detect it themselves |
+| `recover <id>` | Bring node `<id>` back |
+| `faillink <id>` / `uplink <id>` | Force only *this* node's link to `<id>` down / up |
 | `collide` / `collide hard` | Contention and forced-collision demonstrations |
 | `sleepinfo` | Duty cycle and sleep accounting |
 | `csv on` / `csv off` | Toggle the machine-readable CSV stream |

@@ -235,6 +235,35 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
 #define ROUTE_W_LOSS          100
 #define ROUTE_COST_INF      65535
 
+/* Cluster-head preference, subtracted from the cost of routing via the
+ * cluster head.  A sensor node should report to its head rather than straight
+ * to the sink, because that is what makes aggregation possible at all --
+ * going around the head would deliver the same data in more packets.  The
+ * bonus quantifies that benefit so the head still has to compete on cost:
+ * once its link degrades or fails, an ordinary neighbour wins normally.
+ * This is the same idea as LEACH's cluster-member behaviour.               */
+#define ROUTE_W_CH_BONUS      150
+
+/* -----------------------------------------------------------------------------
+ *  INTENDED TOPOLOGY
+ *
+ *  On a lab bench all four boards sit within radio range of each other, so
+ *  every node could reach the sink in one hop and the multi-hop, aggregation
+ *  and route-recovery mechanisms would never actually run.  This matrix
+ *  declares the topology the deployment is meant to have:
+ *
+ *        N1 ──── N2 ──── N4            N1 has NO direct link to the sink
+ *         \      /       /
+ *          \    /       /
+ *           N3 ────────'
+ *
+ *  It is a routing-policy constraint and it is stated openly -- not a claim
+ *  about what the radios can hear.  Spreading the nodes down a corridor would
+ *  produce the same topology physically; set every entry to 1 if you do that.
+ * -------------------------------------------------------------------------- */
+extern const uint8_t ROUTE_LINK_ALLOWED[NUM_NODES + 1][NUM_NODES + 1];
+bool routeLinkAllowed(uint8_t a, uint8_t b);
+
 #define RSSI_NORM_MIN       (-95)    /* maps to rssiNorm = 0                  */
 #define RSSI_NORM_MAX       (-35)    /* maps to rssiNorm = 1                  */
 

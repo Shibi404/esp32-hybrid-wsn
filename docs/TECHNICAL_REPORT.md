@@ -396,6 +396,25 @@ heaviest weight because it is the most direct evidence that a link actually
 delivers: a link can present −55 dBm and still fail under interference or at a
 congested receiver. Hop count is the weakest indicator and is weighted least.
 
+Two further terms shape the outcome.
+
+**Cluster-head preference** (−150). A sensor node reporting to its cluster head
+is what makes aggregation possible at all; routing around the head would carry
+the same readings to the sink in three times as many packets. The term is a
+discount rather than a hard rule, so when the head's link degrades or fails the
+arithmetic allows an ordinary neighbour to win. This mirrors cluster-member
+behaviour in LEACH.
+
+**Topology constraint.** All four boards sit within radio range on one bench, so
+without a constraint every node would reach the sink in a single hop and the
+multi-hop forwarding, aggregation and route-recovery mechanisms would never
+execute. `ROUTE_LINK_ALLOWED` declares the topology the deployment is intended
+to have — N1 has no direct link to the sink. This is a routing policy, stated
+explicitly rather than concealed, and it is not a claim about what the radios
+can hear: distributing the nodes along a corridor would produce the same
+topology physically, and setting every entry to 1 lets the cost metric discover
+it unaided.
+
 The RSSI input prefers the Wi-Fi RSSI harvested by the MAC's promiscuous
 sniffer — which parses `addr2` from the 802.11 header, making it work
 identically on Arduino core 2.x and 3.x despite their incompatible ESP-NOW
@@ -553,6 +572,13 @@ substantially shorter slots.
 grants two nodes the same slot; everything after that — carrier sense, the
 random draws, the freeze, the ACK — is the real mechanism. Unstaged contention
 also occurs in every CAP slot.
+
+**The multi-hop topology is declared, not physical.** With all four boards on
+one bench, every node is within range of the sink. `ROUTE_LINK_ALLOWED`
+expresses the intended deployment topology so that the multi-hop mechanisms
+actually execute. The routing, failure detection and recovery that follow are
+entirely genuine — only the adjacency is asserted, and spacing the nodes out
+would make it physical.
 
 **No hidden-terminal protection beyond NAV.** The virtual carrier sense relies
 on overhearing data frames; a proper RTS/CTS exchange would cover the case

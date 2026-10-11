@@ -234,6 +234,22 @@ All five parameters the guidelines list are used. ACK rate carries the heaviest
 weight because it is the most direct evidence that a link actually delivers —
 RSSI can look healthy on a link that is failing.
 
+Two further terms shape the result:
+
+**Cluster-head preference** (`ROUTE_W_CH_BONUS`, −150). A sensor node reporting
+to its head is what makes aggregation possible; routing around the head would
+deliver the same readings in three times as many packets. It is a discount
+rather than a hard rule, so once the head's link degrades the arithmetic lets
+an ordinary neighbour win. Same idea as LEACH's cluster-member behaviour.
+
+**Topology constraint** (`ROUTE_LINK_ALLOWED`). On a bench every board hears
+every other, so each node could reach the sink in one hop and the multi-hop,
+aggregation and recovery paths would never execute. The matrix declares the
+intended deployment topology — N1 has no direct link to the sink. This is a
+routing policy, stated openly, not a claim about radio range; spacing the nodes
+down a corridor produces the same topology physically, and setting every entry
+to 1 lets the cost metric discover it unaided.
+
 ### Failure and recovery
 
 ```

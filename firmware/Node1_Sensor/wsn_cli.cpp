@@ -46,8 +46,11 @@ void cliPrintHelp(void) {
   Serial.println("   pathloss <n>      set the path-loss exponent (1.5 - 4.5)");
   Serial.println("   settrue <x> <y>   set this node's true position, in metres");
   Serial.println("  ---- demonstrations ----------------------------------------");
-  Serial.println("   fail <id>         make node <id> play dead (link failure)");
+  Serial.println("   fail <id>         make node <id> play dead; its neighbours");
+  Serial.println("                     must DETECT the failure themselves");
   Serial.println("   recover <id>      bring node <id> back");
+  Serial.println("   faillink <id>     force just THIS node's link to <id> down");
+  Serial.println("   uplink <id>       restore it");
   Serial.println("   collide           two nodes transmit in one slot (CSMA/CA");
   Serial.println("                     avoids the collision)");
   Serial.println("   collide hard      bypass carrier sense to force a real");
@@ -169,13 +172,27 @@ static void execute(char *line) {
   else if (!strcmp(cmd, "fail")) {
     if (!a1) { Serial.println("  usage: fail <node id>"); return; }
     wsnNodeSendCommand(BROADCAST_ID, CMD_FAIL_LINK, atoi(a1));
-    Serial.printf("  Node N%d will stop responding. Watch its neighbours detect "
-                  "the failure and re-route.\r\n", atoi(a1));
+    Serial.printf("  Node N%d will stop responding. Its neighbours are NOT told - "
+                  "watch them detect the failure through ACK timeouts, then "
+                  "re-route.\r\n", atoi(a1));
   }
 
   else if (!strcmp(cmd, "recover")) {
     if (!a1) { Serial.println("  usage: recover <node id>"); return; }
     wsnNodeSendCommand(BROADCAST_ID, CMD_RECOVER_LINK, atoi(a1));
+  }
+
+  else if (!strcmp(cmd, "faillink")) {
+    if (!a1) { Serial.println("  usage: faillink <node id>"); return; }
+    routeForceLinkState((uint8_t)atoi(a1), false);
+    Serial.printf("  This node will no longer route via N%d. Use it to steer a "
+                  "specific alternate path; `fail <id>` is the one that makes "
+                  "neighbours detect a failure for themselves.\r\n", atoi(a1));
+  }
+
+  else if (!strcmp(cmd, "uplink")) {
+    if (!a1) { Serial.println("  usage: uplink <node id>"); return; }
+    routeForceLinkState((uint8_t)atoi(a1), true);
   }
 
   else if (!strcmp(cmd, "collide")) {

@@ -280,6 +280,25 @@ RSSI is not yet available it falls back to the BLE RSSI from the localization
 phase. That fallback is one of the three concrete places where the BLE half of
 this system feeds the Wi-Fi half.
 
+**Q. All four boards are on one bench and can hear each other. Is your
+multi-hop routing real?**
+The routing is real; the adjacency is declared. `ROUTE_LINK_ALLOWED` in
+`wsn_config.cpp` states the topology the deployment is meant to have — N1 has
+no direct link to the sink — because otherwise every node would reach the sink
+in one hop and multi-hop, aggregation and recovery would never execute on a
+bench. Everything downstream of that adjacency is genuine: the cost
+computation, the ACK-based failure detection, the alternate-route selection,
+the relaying through N2, the recovery. Spacing the nodes down a corridor gives
+the same topology physically, and setting the matrix to all 1s lets the metric
+discover it unaided. We state it in the report rather than hiding it.
+
+**Q. Why does N1 prefer N3 when N2 would also do?**
+A −150 cost discount for the cluster head. A sensor node reporting to its head
+is what makes aggregation possible; going around the head would deliver the
+same readings in three times as many packets. It is a discount rather than a
+rule, so when N3's link fails the arithmetic lets N2 win on its own merits —
+which is exactly what you see in the recovery demonstration.
+
 **Q. You have two failure detectors. Why?**
 They catch different failures. The ACK-loss detector catches a peer we are
 actively transmitting to. The 7-second silence timeout catches a neighbour

@@ -97,6 +97,8 @@ void     tdmaScheduleCollision(uint8_t a, uint8_t b);
 /* --- sleep ---------------------------------------------------------------- */
 bool     tdmaShouldSleepNow(void);
 void     tdmaEnterSleep(uint32_t ms);
+/* Bring the radio back up if a sleep slot powered it down.  Idempotent.     */
+void     tdmaWakeRadio(void);
 float    tdmaDutyCyclePct(void);
 
 const Schedule  *tdmaSchedule(void);

@@ -79,6 +79,10 @@ typedef void (*MacRxHandler)(const WsnHeader *h, const uint8_t *payload,
 
 bool macBegin(MacRxHandler handler);
 void macLoop(void);
+/* Re-register the ESP-NOW peers.  esp_wifi_stop() during a sleep slot can
+ * tear the peer list down, and a send to a peer that is no longer registered
+ * fails silently, so the scheduler calls this after every radio wake.       */
+void macEnsurePeers(void);
 
 /* Queue a frame.  `seq` is assigned here for originated frames (seq == 0).
  * Returns false if the queue is full.                                        */

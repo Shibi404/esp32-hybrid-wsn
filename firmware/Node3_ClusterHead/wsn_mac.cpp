@@ -174,13 +174,14 @@ static bool addPeer(const uint8_t *mac) {
 
 /* Re-register every peer.  Called at start-up and again after waking from a
  * radio-off sleep, where the Wi-Fi stack may have been torn down.            */
-static void ensurePeers(void) {
+void macEnsurePeers(void) {
   addPeer(BROADCAST_MAC);
   for (uint8_t i = 1; i <= NUM_NODES; i++) {
     if (i == NODE_ID) continue;
     addPeer(NODE_MAC[i]);
   }
 }
+
 
 /* ========================================================================== */
 /*  Init                                                                      */
@@ -202,7 +203,7 @@ bool macBegin(MacRxHandler handler) {
     return false;
   }
   esp_now_register_recv_cb(onEspNowRecv);
-  ensurePeers();
+  macEnsurePeers();
 
 #if ENABLE_PHY_CCA
   /* Listen to management and data frames.  Control frames are short and very
@@ -361,7 +362,7 @@ static bool rawSend(TxItem *it) {
     /* ESP_ERR_ESPNOW_NOT_INIT shows up after a radio-off sleep tore the stack
      * down; re-registering the peers and retrying next pass recovers it.     */
     LOGW(TAG, "esp_now_send -> %s", esp_err_to_name(e));
-    ensurePeers();
+    macEnsurePeers();
     return false;
   }
 

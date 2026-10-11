@@ -252,16 +252,18 @@ void tdmaEnterSleep(uint32_t ms) {
 }
 
 /* Bring the radio back before a slot in which we transmit or receive.        */
-static void wakeRadio(void) {
+void tdmaWakeRadio(void) {
 #if !ENABLE_LIGHT_SLEEP
   if (!s_radioOff) return;
   esp_wifi_start();
   esp_wifi_set_channel(WSN_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
   s_radioOff = false;
-  /* esp_wifi_stop() can tear down the ESP-NOW peer list; macSend() detects the
-   * resulting ESP_ERR_ESPNOW_NOT_INIT and re-registers, but doing a cheap
-   * explicit nudge here avoids losing the first frame after every wake.      */
   delay(5);
+  /* esp_wifi_stop() can tear the ESP-NOW peer list down with it, and a send
+   * to an unregistered peer fails silently -- which would look exactly like
+   * a link failure and trigger a spurious re-route.  Re-registering is cheap
+   * and idempotent, so just do it on every wake.                            */
+  macEnsurePeers();
 #endif
 }
 
@@ -327,7 +329,7 @@ void tdmaLoop(void) {
   const bool mine = tdmaIsSlotMine(slot);
   digitalWrite(PIN_LED, mine ? HIGH : LOW);
 
-  if (slotNeedsRadio(slot)) wakeRadio();
+  if (slotNeedsRadio(slot)) tdmaWakeRadio();
 
   LOGD(TAG, "--- slot %u (%s, owner N%u)%s ---", slot,
        tdmaSlotKindName(s_sched.kind[slot]), s_sched.owner[slot],

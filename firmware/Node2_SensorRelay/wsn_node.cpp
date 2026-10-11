@@ -557,6 +557,10 @@ static bool nodeScansBle(void) {
 }
 
 static void runWifiInit(void) {
+  /* A sleep slot may have powered the radio down just before the node left
+   * for its BLE scan; bring it back before anything tries to transmit.      */
+  tdmaWakeRadio();
+
   if (s_hooks.onWifiUp) s_hooks.onWifiUp();
 
   /* Queue the position for the sink.  There may be no route yet on the very

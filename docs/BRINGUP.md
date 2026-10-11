@@ -21,7 +21,7 @@ This is the only stage that can destroy hardware. Do not skip it.
 | **MQ135 `VCC` is on 3V3** | Same | Same |
 | **MQ2 `AOUT` → GPIO 32–39** | Visual | ADC2 is owned by the Wi-Fi driver; a read there returns garbage with no error |
 | **MQ135 `AOUT` → GPIO 32–39** | Visual | Same |
-| **DHT22 has a 10 kΩ pull-up** to 3V3 on its data line | Visual — many breakouts have one fitted already | Open-drain line will not produce a clean logic high without it |
+| **DHT22 pull-up** | Visual — a 3-pin module on a PCB almost always has one. If you have the bare 4-pin sensor and no resistor, carry on anyway: the ESP32's internal ~45 kΩ pull-up is enabled in firmware and usually suffices over a short wire. See `WIRING.md` §3 | Open-drain line needs *a* pull-up, not specifically 10 kΩ |
 | **PIR on 5V/VIN** | Visual | HC-SR501 needs 4.5–20 V; it will not work on 3V3 |
 | **All grounds common** | Continuity test | |
 
@@ -103,7 +103,7 @@ sensors
 
 | Node | Expect | If wrong |
 |---|---|---|
-| N1 | `Temperature: 27.40`, `Humidity: 58.20` | `INVALID` → missing 10 kΩ pull-up, or wrong GPIO |
+| N1 | `Temperature: 27.40`, `Humidity: 58.20` | `INVALID` → shorten the data wire to under 20 cm first; if it persists, fit a 4.7k–22k pull-up to 3V3, or check the GPIO. Not a blocker either way — see `WIRING.md` §3 |
 | N2 | `ADC raw: 1840`, `R0 (clean air): 4.82`, a ppm value | `raw: 0` → not connected / wrong pin. `raw: 4095` → saturated or still on 5 V. `NOT CALIBRATED` → run `calib` |
 | N3 | same as N2 | same |
 | N4 | `Motion: none`, then `DETECTED` when you wave | always `DETECTED` → trigger jumper on `L`, or delay trimmer too high |

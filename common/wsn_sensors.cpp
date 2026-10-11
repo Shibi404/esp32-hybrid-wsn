@@ -158,8 +158,16 @@ void sensorsBegin(void) {
   s_bootMs        = millis();
 
   if (nodeHasDht()) {
+    /* Enable the internal pull-up explicitly.  The Adafruit library already
+     * does this on every read, but stating it here makes the dependency
+     * visible: the ESP32's internal pull-up is roughly 45 kOhm, weaker than
+     * the 10 kOhm the datasheet asks for, and it is usually enough over a
+     * short data wire.  An external 4.7k-22k resistor to 3V3 is only needed
+     * if reads keep failing -- see the diagnostic in updateDht().          */
+    pinMode(PIN_DHT22, INPUT_PULLUP);
     s_dht.begin();
-    LOGI(TAG, "DHT22 on GPIO%d (needs a 10k pull-up to 3V3)", PIN_DHT22);
+    LOGI(TAG, "DHT22 on GPIO%d, internal pull-up enabled (~45k). Add an "
+              "external 4.7k-22k to 3V3 only if reads fail.", PIN_DHT22);
   }
 
   if (nodeHasMq()) {
@@ -222,8 +230,13 @@ static void updateDht(void) {
       s_d.sensorMask &= (uint8_t)~(SENS_TEMP | SENS_HUM);
       s_d.temperature = NAN;
       s_d.humidity    = NAN;
-      LOGE(TAG, "DHT22 failed %u consecutive reads - marking temp/hum invalid "
-                "(check the 10k pull-up and the 3V3 supply)", s_dhtFails);
+      LOGE(TAG, "DHT22 failed %u consecutive reads - marking temp/hum invalid. "
+                "The aggregator will now skip these fields rather than average "
+                "in a zero.", s_dhtFails);
+      LOGE(TAG, "  To fix: shorten the data wire (<20 cm), or add a 4.7k-22k "
+                "pull-up from GPIO%d to 3V3. The internal ~45k pull-up is "
+                "marginal on a long wire. Also confirm VCC is on 3V3.",
+           PIN_DHT22);
     } else {
       LOGW(TAG, "DHT22 read failed (%u/%u) - keeping last good value",
            s_dhtFails, SENSOR_MAX_FAILS);

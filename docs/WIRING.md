@@ -49,7 +49,7 @@ differs, change it there rather than rewiring.
 | Sensor pin | ESP32 | Notes |
 |---|---|---|
 | `VCC` | **3V3** | |
-| `DATA` | **GPIO 4** | **10 kΩ pull-up from DATA to 3V3 is required** |
+| `DATA` | **GPIO 4** | Pull-up to 3V3 — but see the note below; you may not need to fit one |
 | `GND` | GND | |
 | — | GPIO 2 | On-board LED: lights during this node's TDMA slot |
 
@@ -63,9 +63,37 @@ differs, change it there rather than rewiring.
   +-------+                +-------+
 ```
 
-> The DHT22's data line is open-drain and will not produce a clean logic high
-> without that pull-up. Many breakout boards already have one fitted — check
-> for a resistor next to the connector before adding a second.
+#### No 10 kΩ resistor? You probably don't need one.
+
+The DHT22's data line is open-drain and needs a pull-up to produce a clean
+logic high. There are three ways you already have one:
+
+1. **The module may have it fitted.** A **3-pin DHT22 on a small PCB** almost
+   always does — look for a tiny resistor beside the pins. Only the **bare
+   4-pin sensor** (white plastic grille, two rows of holes, no PCB) lacks one.
+2. **The ESP32's internal pull-up is enabled in firmware.** `sensorsBegin()`
+   sets `INPUT_PULLUP`, and the Adafruit library re-asserts it on every read.
+   It is roughly 45 kΩ — weaker than the datasheet's 10 kΩ, but usually
+   sufficient over a **short data wire (under ~20 cm)**. Many ESP32 + DHT22
+   builds run on nothing else.
+3. **Any resistor from 4.7 kΩ to 22 kΩ works.** It is not a precision value.
+   Two in series or parallel will get you into range: 2 × 4.7 kΩ in series
+   ≈ 9.4 kΩ, 2 × 22 kΩ in parallel = 11 kΩ.
+
+**Just try it first.** Run `sensors` on N1 after the warm-up:
+
+* `Temperature: 27.40` → working; no resistor needed.
+* `Temperature: INVALID` → shorten the data wire first, since wire capacitance
+  is what defeats a weak pull-up. If it still fails, fit an external resistor.
+
+**If it cannot be fixed before the demonstration, it is not a blocker.** After
+three consecutive failed reads the firmware clears the temperature and
+humidity validity bits, and the aggregator *excludes* those fields instead of
+averaging in a zero. Everything else — BLE localization, the MAC, TDMA,
+aggregation of the two gas sensors, multi-hop routing, failure recovery and
+all seven metrics — is unaffected. You lose one sensor's data, not a rubric
+item, and pulling the data wire on purpose makes a clean demonstration of the
+fault-handling path.
 
 ### Node 2 — MQ2 (smoke / LPG)
 

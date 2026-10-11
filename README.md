@@ -91,6 +91,8 @@ esp32-hybrid-wsn/
 ├── tools/
 │   ├── print_mac/              Run once per board to read its Wi-Fi MAC
 │   ├── sync_common.py          Copies common/ into each sketch folder
+│   ├── build_all.py            Verifies all four sketches compile
+│   ├── make_report_docx.py     Renders the technical report as .docx
 │   ├── serial_logger.py        Sink serial → results/metrics.csv
 │   └── plot_metrics.py         CSV → PNG graphs for the report
 ├── docs/
@@ -179,7 +181,17 @@ Defaults assume a 4.0 m × 3.0 m area.
 
 ```bash
 python tools/sync_common.py          # copy common/ into the four sketch folders
+python tools/build_all.py            # optional: verify all four still compile
 ```
+
+`build_all.py` finds the `arduino-cli` bundled with Arduino IDE 2.x
+automatically. Verified against **esp32 core 3.0.1** — all four build with
+warnings enabled and no diagnostics:
+
+| Sketch | Flash | RAM |
+|---|---|---|
+| Node1 / Node2 / Node3 | 1682 kB (54 %) | 58 kB (18 %) |
+| Node4 (adds SoftAP + web server) | 1745 kB (56 %) | 60 kB (18 %) |
 
 Then in Arduino IDE, open and upload each sketch to its board:
 

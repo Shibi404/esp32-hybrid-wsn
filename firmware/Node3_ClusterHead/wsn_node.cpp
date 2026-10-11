@@ -97,7 +97,7 @@ static void wifiBringUp(void) {
 
   char mac[18];
   uint8_t m[6];
-  WiFi.macAddress(m);
+  logReadStaMac(m);
   LOGI(TAG, "Wi-Fi up: STA MAC %s, channel %d", logMacStr(m, mac), WSN_WIFI_CHANNEL);
 }
 

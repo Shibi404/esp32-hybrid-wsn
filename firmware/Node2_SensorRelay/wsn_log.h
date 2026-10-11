@@ -32,8 +32,20 @@ bool logCsvEnabled(void);
 void logPrintf(LogLevel lvl, const char *tag, const char *fmt, ...);
 void logCsv(const char *fmt, ...);
 
-/* A banner printed once at boot -- role, MAC, version, build settings.       */
+/* The boot banner: role, MAC, version, build settings.  Safe to call again at
+ * any time, and the `banner` command does -- the real one is printed within
+ * the first second of boot and a serial monitor that attaches late misses it
+ * entirely, including the MAC-mismatch warning.                             */
 void logBanner(void);
+
+/* This board's Wi-Fi station MAC, read from eFuse.                          */
+void logReadStaMac(uint8_t *mac);
+
+/* The node id this board's MAC maps to in the NODE_MAC table, or 0 if it is
+ * not in the table.  Non-zero but different from NODE_ID means the wrong
+ * sketch was flashed to this board.                                         */
+uint8_t logMacTableCheck(void);
+
 /* "AA:BB:CC:DD:EE:FF" into a caller-supplied 18-byte buffer.                 */
 const char *logMacStr(const uint8_t *mac, char *buf);
 

@@ -30,6 +30,7 @@ void cliPrintHelp(void) {
   Serial.println();
   Serial.println("  ================= COMMANDS =================================");
   Serial.println("   help              this list");
+  Serial.println("   banner            reprint the boot banner (incl. MAC check)");
   Serial.println("   status            phase, uptime, role, heap, network view");
   Serial.println("   stats             MAC + TDMA + routing + performance");
   Serial.println("   mac               CSMA/CA counters in detail");
@@ -67,9 +68,25 @@ void cliPrintHelp(void) {
 /* -------------------------------------------------------------------------- */
 
 static void printStatus(void) {
+  uint8_t mac[6];
+  char    macbuf[18];
+  logReadStaMac(mac);
+  const uint8_t tableId = logMacTableCheck();
+
   Serial.println();
   Serial.printf("  Node        : %s (id %u)  role %s\r\n",
                 NODE_NAME[NODE_ID], NODE_ID, wsnRoleName(NODE_ROLE));
+  Serial.printf("  STA MAC     : %s  %s\r\n", logMacStr(mac, macbuf),
+                tableId == NODE_ID ? "(matches NODE_MAC)"
+              : tableId == 0       ? "*** NOT IN THE NODE_MAC TABLE ***"
+                                   : "*** WRONG SKETCH FOR THIS BOARD ***");
+  if (tableId && tableId != NODE_ID)
+    Serial.printf("                NODE_MAC says this board is N%u. Flash it "
+                  "the N%u sketch, or reorder the table.\r\n",
+                  tableId, tableId);
+  if (!tableId)
+    Serial.println("                Paste this MAC into common/wsn_config.cpp, "
+                   "re-run sync_common.py, re-flash.");
   Serial.printf("  Phase       : %s\r\n", wsnNodePhaseName(wsnNodePhase()));
   Serial.printf("  Uptime      : %lu s     free heap %lu B\r\n",
                 (unsigned long)wsnNodeUptimeS(), (unsigned long)ESP.getFreeHeap());
@@ -129,6 +146,7 @@ static void execute(char *line) {
   char *a2  = strtok(nullptr, " ");
 
   if      (!strcmp(cmd, "help"))    cliPrintHelp();
+  else if (!strcmp(cmd, "banner"))  logBanner();
   else if (!strcmp(cmd, "status"))  printStatus();
   else if (!strcmp(cmd, "mac"))     macPrintStats();
   else if (!strcmp(cmd, "nbr") ||

@@ -5,17 +5,32 @@
 #include "wsn_log.h"
 #include <WiFi.h>
 #include <stdarg.h>
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  #include <esp_mac.h>
+#else
+  #include <esp_system.h>
+#endif
 
 static LogLevel s_level   = LVL_INFO;
 static bool     s_csv     = true;
 
 void logBegin(uint32_t baud) {
   Serial.begin(baud);
-  /* Give the USB-serial bridge a moment so the boot banner is not cut off on
-   * boards that enumerate slowly.  Bounded, so a headless node never stalls. */
+
+  /* Wait for the host to attach before printing anything worth reading.
+   *
+   * On a board with a CP2102/CH340 bridge, `Serial` is always truthy, so the
+   * loop below falls straight through and only the fixed delay applies.  That
+   * delay has to cover the gap between the auto-reset the IDE triggers when
+   * the Serial Monitor opens and the moment the monitor actually starts
+   * capturing -- typically 200-500 ms.  At 100 ms the whole boot sequence,
+   * including the MAC-mismatch warning, was being lost.
+   *
+   * Both waits are bounded so a node running headless never stalls here.
+   * The `banner` command reprints everything anyway if it is still missed. */
   const uint32_t t0 = millis();
   while (!Serial && (millis() - t0) < 1500) { delay(10); }
-  delay(100);
+  delay(600);
 }
 
 void logSetLevel(LogLevel lvl) { s_level = lvl; }
@@ -62,6 +77,26 @@ void logCsv(const char *fmt, ...) {
                 (unsigned long)millis(), body);
 }
 
+/* Read the station MAC straight from eFuse.
+ *
+ * WiFi.macAddress() goes through the netif layer and hands back all zeros if
+ * it is consulted before that layer is ready -- which is exactly when the
+ * boot banner runs, a few microseconds after WiFi.mode().  esp_read_mac()
+ * derives the same address from the burned-in base MAC and works whether or
+ * not the driver has started, so the banner and the NODE_MAC consistency
+ * check are both trustworthy from the first line of output.                 */
+void logReadStaMac(uint8_t *mac) {
+  memset(mac, 0, 6);
+  if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) return;
+  WiFi.macAddress(mac);          /* fallback; should not be reached          */
+}
+
+uint8_t logMacTableCheck(void) {
+  uint8_t mac[6];
+  logReadStaMac(mac);
+  return wsnNodeIdFromMac(mac);
+}
+
 const char *logMacStr(const uint8_t *mac, char *buf) {
   snprintf(buf, 18, "%02X:%02X:%02X:%02X:%02X:%02X",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -85,7 +120,7 @@ void logSection(const char *title) {
 void logBanner(void) {
   uint8_t mac[6];
   char    macbuf[18];
-  WiFi.macAddress(mac);
+  logReadStaMac(mac);
 
   Serial.println();
   logSection("ESP32 HYBRID WSN  --  23CSE341 LAB EVALUATION 2");
@@ -105,7 +140,11 @@ void logBanner(void) {
 
   /* Warn loudly if the MAC table was never filled in -- this is the number one
    * reason a freshly cloned build appears to do nothing.                     */
-  if (wsnNodeIdFromMac(mac) == 0) {
+  if (mac[0] == 0 && mac[1] == 0 && mac[2] == 0) {
+    Serial.println();
+    Serial.println("  *** WARNING: could not read this board's MAC.            ***");
+    Serial.println("  *** ESP-NOW will not work. Re-flash and power-cycle.     ***");
+  } else if (wsnNodeIdFromMac(mac) == 0) {
     Serial.println();
     Serial.println("  *** WARNING: this board's MAC is NOT in the NODE_MAC table.  ***");
     Serial.println("  *** Paste it into common/wsn_config.cpp and re-flash all 4.  ***");

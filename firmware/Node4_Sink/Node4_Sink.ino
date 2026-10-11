@@ -250,12 +250,14 @@ static String buildState(void) {
   j += ',';
 
   /* ---- routing ------------------------------------------------------------ */
-  const RouteState *rs = routeState();
+  /* Report what the NETWORK did, not what the sink did.  The sink is the
+   * destination: its own next hop never changes, so its RouteState counters
+   * are permanently zero and reporting them made a re-routing network look
+   * completely static.  These come from the ROUTE_UPDATE frames other nodes
+   * broadcast when they detect a failure or switch route.                  */
   j += "\"route\":{";
-  jsonInt(j, "changes", rs->routeChanges);
-  jsonInt(j, "failures", rs->failuresDetected);
-  jsonInt(j, "recoveries", rs->recoveries);
-  jsonInt(j, "failoverMs", rs->failoverMs);
+  jsonInt(j, "events", wsnNodeRouteEventsSeen());
+  jsonInt(j, "linkDowns", wsnNodeLinkDownsSeen());
   jsonClose(j);
   j += ',';
 
@@ -333,7 +335,16 @@ static void onWifiUp(void) {
 }
 
 static void onLoop(void) {
-  if (s_apUp) server.handleClient();
+  if (!s_apUp) return;
+
+  server.handleClient();
+
+  /* Serving a page blocks for long enough to miss an ACK deadline, and the
+   * ACKs this node owes are only transmitted from macLoop().  Run it again
+   * the moment the handler returns, rather than waiting for the next pass
+   * through wsnNodeLoop(), so a browser poll cannot cost the cluster head a
+   * retransmission.                                                         */
+  macLoop();
 }
 
 /* -------------------------------------------------------------------------- */

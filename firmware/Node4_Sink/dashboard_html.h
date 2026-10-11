@@ -277,12 +277,13 @@ function render(s){
   const paths = s.nodes.filter(d=>d.path&&d.path.length>1)
                        .map(d=>`${d.name}: ${d.path.replace(/->/g," &rarr; ")}`);
   $("routeKv").innerHTML=kv([
-    ["Active paths", paths.length?paths.join("<br>"):"&mdash;"],
-    ["Route changes", s.route.changes],
-    ["Failures detected", s.route.failures, s.route.failures?"warn":""],
-    ["Recoveries", s.route.recoveries, s.route.recoveries?"ok":""],
-    ["Last failover", s.route.failoverMs? s.route.failoverMs+" ms":"&mdash;"]
-  ]);
+    ["Last path seen per source", paths.length?paths.join("<br>"):"&mdash;"],
+    ["Route-control events heard", s.route.events],
+    ["Link failures announced", s.route.linkDowns, s.route.linkDowns?"warn":""]
+  ])+`<div class="dim" style="font-size:11px;margin-top:6px">
+      Counted from the ROUTE_UPDATE frames other nodes broadcast. The sink is
+      the destination, so it has no route of its own to change. Per-node
+      detail is on that node's <span class="mono">route</span> command.</div>`;
 
   /* 5 - aggregation */
   const A=s.agg;
@@ -362,7 +363,10 @@ async function tick(){
     render(await r.json());
   }catch(e){ $("err").style.display="block"; }
 }
-tick(); setInterval(tick,800);
+/* 1.5 s rather than 0.8 s: serving this page blocks the sink's main loop,
+   and the ACKs it owes are transmitted from there. Polling too hard costs
+   the cluster head retransmissions. */
+tick(); setInterval(tick,1500);
 </script>
 </body>
 </html>

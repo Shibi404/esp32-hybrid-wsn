@@ -285,6 +285,21 @@ void routeForceLinkState(uint8_t id, bool up) {
 
 /* -------------------------------------------------------------------------- */
 
+void routeNoteOffAir(uint32_t ms) {
+  if (!ms) return;
+  /* Shift every neighbour's last-heard timestamp forward by the time we spent
+   * deaf.  Without this a node that goes off air for a 3 s BLE scan comes
+   * back, measures the silence it caused itself, and declares its neighbours
+   * dead -- which tears down a perfectly good route and makes it flap.     */
+  for (uint8_t i = 1; i <= NUM_NODES; i++) {
+    if (i == NODE_ID || !s_nbr[i].known) continue;
+    s_nbr[i].lastHeardMs += ms;
+    if ((int32_t)(s_nbr[i].lastHeardMs - millis()) > 0) s_nbr[i].lastHeardMs = millis();
+  }
+  LOGD(TAG, "Was off air for %lu ms - neighbour silence timers credited",
+       (unsigned long)ms);
+}
+
 void routeLoop(void) {
   static uint32_t lastSweep = 0;
   if (millis() - lastSweep < 500) return;

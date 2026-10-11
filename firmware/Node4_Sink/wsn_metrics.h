@@ -35,6 +35,8 @@ typedef struct {
   uint32_t rxPayloadBytes;   /* application payload only                      */
   uint32_t duplicates;
   uint32_t outOfOrder;
+  uint32_t streamResets;     /* source switched between direct and aggregated
+                              * delivery; see METRIC_GAP_RESET               */
   uint16_t firstSeq, lastSeq;
   bool     seen;
   uint32_t expected;

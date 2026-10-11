@@ -88,6 +88,13 @@ typedef struct {
   char        lastPath[20];  /* e.g. "1->3->4"                                */
 } NodeView;
 
+/* Route-control events this node has OVERHEARD from others.  The sink's own
+ * RouteState is structurally empty -- it is the destination, so its next hop
+ * never changes -- which made the dashboard's routing panel report zeros for
+ * a network that was busy re-routing.                                       */
+uint32_t wsnNodeRouteEventsSeen(void);
+uint32_t wsnNodeLinkDownsSeen(void);
+
 const NodeView    *wsnNodeView(uint8_t id);
 const LocPayload  *wsnNodeLastLocalization(void);   /* null until one arrives */
 const AggPayload  *wsnNodeLastAggregate(void);      /* null until one arrives */

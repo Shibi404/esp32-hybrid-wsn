@@ -41,6 +41,8 @@ static uint32_t s_lastHelloSf    = 0xFFFFFFFF;
 static uint32_t s_lastStatusSf   = 0xFFFFFFFF;
 static uint32_t s_lastReviewSf   = 0xFFFFFFFF;
 static bool     s_locPending     = false;
+static uint32_t s_routeEventsSeen = 0;
+static uint32_t s_linkDownsSeen   = 0;
 static bool     s_collideArmed   = false;
 static bool     s_collideHard    = false;
 
@@ -58,6 +60,9 @@ NodePhase wsnNodePhase(void)   { return s_phase; }
 uint32_t  wsnNodeUptimeS(void) { return (millis() - s_bootMs) / 1000; }
 uint32_t  wsnNodeReportsSent(void) { return s_reportsSent; }
 bool      wsnNodeIsSimulatedDown(void) { return s_simDown; }
+
+uint32_t wsnNodeRouteEventsSeen(void) { return s_routeEventsSeen; }
+uint32_t wsnNodeLinkDownsSeen(void)   { return s_linkDownsSeen; }
 
 const NodeView   *wsnNodeView(uint8_t id) {
   return (id <= NUM_NODES) ? &s_view[id] : &s_view[0];
@@ -241,6 +246,8 @@ static void onFrame(const WsnHeader *h, const uint8_t *pl, size_t plen, int8_t r
     /* ---- BROADCAST: route control ---------------------------------------- */
     case FT_ROUTE_UPDATE: {
       const RoutePayload *p = (const RoutePayload *)pl;
+      s_routeEventsSeen++;
+      if (p->event == RE_LINK_DOWN) s_linkDownsSeen++;
       LOGW(TAG, "ROUTE CONTROL from N%u: %s on link N%u-N%u; its next hop is "
                 "now N%u (%u hops, cost %u)",
            p->originator, wsnRouteEventName(p->event), p->peerA, p->peerB,
@@ -560,6 +567,11 @@ static void runWifiInit(void) {
   /* A sleep slot may have powered the radio down just before the node left
    * for its BLE scan; bring it back before anything tries to transmit.      */
   tdmaWakeRadio();
+
+  /* We have just spent the BLE phase deaf.  Credit that time back to every
+   * neighbour's silence timer, or the failure detector will interpret our own
+   * absence as theirs and tear down a working route.                        */
+  routeNoteOffAir(millis() - s_phaseStart);
 
   if (s_hooks.onWifiUp) s_hooks.onWifiUp();
 

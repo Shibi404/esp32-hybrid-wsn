@@ -87,6 +87,11 @@ bool routeRecompute(void);
 /* Force a neighbour down / up (the `fail` and `recover` demonstrations).     */
 void routeForceLinkState(uint8_t id, bool up);
 
+/* Tell the failure detector that THIS node was deaf for `ms` -- a BLE scan,
+ * for instance.  Silence observed while we were not listening is not
+ * evidence that anyone else went away.                                      */
+void routeNoteOffAir(uint32_t ms);
+
 /* Pop a route event that should be broadcast as an FT_ROUTE_UPDATE.  Returns
  * false when there is nothing to announce.                                   */
 bool routeTakePendingAnnounce(uint8_t *event, uint8_t *a, uint8_t *b);

@@ -173,7 +173,14 @@ extern bool   NODE_IS_ANCHOR[NUM_NODES + 1];
 #define MAC_SIFS_US           300  /* gap before an ACK is returned           */
 #define MAC_CW_MIN              8  /* initial contention window, in slots     */
 #define MAC_CW_MAX             64  /* ceiling after exponential doubling      */
-#define MAC_ACK_TIMEOUT_MS     60  /* how long to wait for an application ACK */
+/* The sink blocks inside server.handleClient() while it builds and sends a
+ * ~4 kB JSON response, and macLoop() -- which is what actually transmits the
+ * ACKs it owes -- cannot run during that window.  At 60 ms the aggregates
+ * from the cluster head were timing out, being retried, and finally dropped,
+ * showing up at the sink as sequence gaps and a 66 % delivery ratio on links
+ * measuring -37 dBm.  120 ms clears the web handler and still fits inside a
+ * 250 ms slot.                                                             */
+#define MAC_ACK_TIMEOUT_MS    120  /* how long to wait for an application ACK */
 #define MAC_MAX_RETRIES         4  /* then drop and penalise the link         */
 #define MAC_SENSE_TIMEOUT_MS   50  /* if busy this long, transmit anyway and
                                     * count it as a forced transmission       */
@@ -342,6 +349,10 @@ bool routeLinkAllowed(uint8_t a, uint8_t b);
 
 #define ROUTE_FAIL_LIMIT        3    /* consecutive ACK losses -> link down   */
 #define NEIGHBOR_TIMEOUT_MS  7000UL  /* silence this long -> link down        */
+#define METRIC_GAP_RESET        8    /* sequence jump that means "this source
+                                      * stopped sending to us directly", not
+                                      * "we lost eight frames" -- see
+                                      * metricsNoteRx()                      */
 #define HELLO_INTERVAL_MS    2000UL  /* one HELLO per superframe              */
 #define WSN_DEFAULT_TTL         5
 

@@ -41,8 +41,26 @@ void metricsNoteRx(const WsnHeader *h, size_t frameLen, size_t payloadLen,
   } else {
     /* Duplicates would otherwise inflate PDR above 1.0 and understate delay. */
     if (h->seq == m.lastSeq) { m.duplicates++; return; }
-    if ((int16_t)(h->seq - m.lastSeq) < 0) { m.outOfOrder++; }
-    else                                     { m.lastSeq = h->seq; }
+
+    const int16_t jump = (int16_t)(h->seq - m.lastSeq);
+    if (jump < 0) {
+      m.outOfOrder++;
+    } else if (jump > METRIC_GAP_RESET) {
+      /* A jump this large does not mean we lost that many frames.  It means
+       * the source stopped sending to us directly for a while -- normally
+       * because its readings were being folded into the cluster head's
+       * aggregates and so never travelled as their own packets.  Counting
+       * those as losses would charge the aggregator's efficiency against the
+       * network's delivery ratio.  Re-baseline instead, and record it.     */
+      m.streamResets++;
+      m.firstSeq   = h->seq;
+      m.lastSeq    = h->seq;
+      m.rxPackets  = 0;
+      m.expected   = 0;
+      m.lost       = 0;
+    } else {
+      m.lastSeq = h->seq;
+    }
   }
 
   m.rxPackets++;

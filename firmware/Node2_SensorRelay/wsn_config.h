@@ -22,7 +22,7 @@
  * file.  They are deliberately not compile-time constants: Arduino compiles
  * every .cpp in the sketch folder as a separate translation unit, so a #define
  * placed in the .ino would not reach these shared modules.  Keeping them as
- * externs means common/*.cpp is byte-for-byte identical across all four nodes.
+ * externs means the shared .cpp files are byte-identical across all four nodes.
  * -------------------------------------------------------------------------- */
 
 #define NUM_NODES         4

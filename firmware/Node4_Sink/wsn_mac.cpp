@@ -190,7 +190,8 @@ bool macBegin(MacRxHandler handler) {
   memset(&s_stats, 0, sizeof(s_stats));
   memset(s_txq, 0, sizeof(s_txq));
   s_txHead = s_txTail = s_txCount = 0;
-  s_rxHead = s_rxTail = 0;
+  s_rxHead = 0;
+  s_rxTail = 0;
   s_ackCount = 0;
   s_cw = MAC_CW_MIN;
   s_state = MAC_IDLE;

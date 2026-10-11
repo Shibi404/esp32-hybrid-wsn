@@ -153,7 +153,7 @@ uint8_t tdmaSlotOwner(uint8_t slot) {
 }
 
 uint8_t tdmaSlotKind(uint8_t slot) {
-  return (slot < TDMA_NUM_SLOTS) ? s_sched.kind[slot] : SK_SLEEP;
+  return (slot < TDMA_NUM_SLOTS) ? s_sched.kind[slot] : (uint8_t)SK_SLEEP;
 }
 
 bool tdmaIsSlotMine(uint8_t slot) {

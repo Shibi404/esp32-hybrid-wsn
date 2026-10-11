@@ -33,7 +33,7 @@ static void IRAM_ATTR pirIsr(void) {
   const uint32_t now = micros();
   if (now - s_lastMotionUs > 200000UL) {   /* 200 ms debounce                 */
     s_lastMotionUs = now;
-    s_motionEvents++;
+    s_motionEvents = s_motionEvents + 1;
   }
 }
 

@@ -57,23 +57,34 @@ static void recordSample(uint8_t id, int8_t rssi) {
   s_nbr[id].lastSeenMs = millis();
 }
 
-/* --- scan callback (signature differs between core 2.x and 3.x) ----------- */
+/* --- scan callback -------------------------------------------------------- */
 
+/*
+ * The Arduino-ESP32 BLE library changed this callback's signature partway
+ * through the 3.x series: older cores (including 3.0.x) declare
+ *   virtual void onResult(BLEAdvertisedDevice advertisedDevice)
+ * while newer ones declare
+ *   virtual void onResult(BLEAdvertisedDevice *advertisedDevice)
+ *
+ * Guarding on ESP_ARDUINO_VERSION_MAJOR is not enough, because both forms
+ * exist within major version 3.  Declaring BOTH overloads sidesteps the
+ * question entirely: whichever one matches the base class's pure virtual
+ * implements it, and the other is simply an unused member function.  Neither
+ * is marked `override`, since exactly one of them will not be overriding
+ * anything on any given core.
+ */
 class WsnScanCb : public BLEAdvertisedDeviceCallbacks {
   void handle(BLEAdvertisedDevice &dev) {
     if (!dev.haveName()) return;
-    /* std::string (core 2.x) and String (core 3.x) both expose c_str(), so
-     * routing through it keeps this one line portable across both cores.    */
+    /* std::string (older cores) and String (newer) both expose c_str(), so
+     * routing through it keeps this line portable too.                      */
     const String name = String(dev.getName().c_str());
     const uint8_t id  = nodeIdFromAdvName(name);
     if (id) recordSample(id, (int8_t)dev.getRSSI());
   }
 public:
-#if ESP_ARDUINO_VERSION_MAJOR >= 3
-  void onResult(BLEAdvertisedDevice *dev) override { if (dev) handle(*dev); }
-#else
-  void onResult(BLEAdvertisedDevice dev) override { handle(dev); }
-#endif
+  void onResult(BLEAdvertisedDevice  dev) { handle(dev); }
+  void onResult(BLEAdvertisedDevice *dev) { if (dev) handle(*dev); }
 };
 
 static WsnScanCb s_scanCb;

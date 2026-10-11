@@ -56,8 +56,15 @@ static bool      s_apUp = false;
 
 static void jsonNum(String &s, const char *key, float v, uint8_t dp = 2) {
   s += '"'; s += key; s += "\":";
-  if (isfinite(v)) s += String(v, dp);
-  else             s += "null";          /* an invalid reading must not become 0 */
+  if (isfinite(v)) {
+    /* snprintf rather than String(v, dp): the String(float, uint8_t)
+     * constructor is ambiguous between the float and double overloads.      */
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%.*f", (int)dp, (double)v);
+    s += buf;
+  } else {
+    s += "null";          /* an invalid reading must never become 0 */
+  }
   s += ',';
 }
 

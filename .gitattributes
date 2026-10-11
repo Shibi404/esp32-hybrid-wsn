@@ -1,0 +1,6 @@
+# Normalise line endings so the CRLF warnings stop and diffs stay clean.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
